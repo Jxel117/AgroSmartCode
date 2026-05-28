@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Paleta AgroSmart */
+  --verde-900: #1a2e1a;
+  --verde-800: #243b22;
+  --verde-700: #2f5e2c;
+  --verde-600: #3d7a38;
+  --verde-500: #4f9a45;
+  --verde-400: #6bb85f;
+  --verde-300: #9cd494;
+  --verde-100: #e3f2df;
+  --tierra-700: #6b4f2e;
+  --tierra-500: #a07d4f;
+  --crema: #f7f5ef;
+  --blanco: #ffffff;
+  --gris-900: #1f2421;
+  --gris-700: #41463f;
+  --gris-500: #6f756c;
+  --gris-300: #c8ccc4;
+  --gris-100: #eef0eb;
+
+  --ambar: #e0a13a;
+  --rojo: #c1452f;
+  --azul: #2f6fb0;
+
+  --sombra-sm: 0 1px 2px rgba(26, 46, 26, 0.06);
+  --sombra-md: 0 4px 16px rgba(26, 46, 26, 0.08);
+  --sombra-lg: 0 12px 40px rgba(26, 46, 26, 0.12);
+  --radio: 14px;
+  --radio-sm: 8px;
+
+  --fuente-titulo: 'Fraunces', Georgia, serif;
+  --fuente-texto: 'Outfit', system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--fuente-texto);
+  background: var(--crema);
+  color: var(--gris-900);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 { font-family: var(--fuente-titulo); font-weight: 600; letter-spacing: -0.01em; }
+
+a { color: inherit; text-decoration: none; }
+
+button { font-family: var(--fuente-texto); cursor: pointer; border: none; }
+
+input, select {
+  font-family: var(--fuente-texto);
+  font-size: 0.95rem;
+}
+
+/* Utilidades reutilizables */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.6rem 1.1rem; border-radius: var(--radio-sm); font-weight: 600;
+  font-size: 0.9rem; transition: all 0.18s ease;
+}
+.btn-primario { background: var(--verde-600); color: var(--blanco); }
+.btn-primario:hover { background: var(--verde-700); }
+.btn-secundario { background: var(--gris-100); color: var(--gris-900); }
+.btn-secundario:hover { background: var(--gris-300); }
+.btn-peligro { background: var(--rojo); color: var(--blanco); }
+.btn-peligro:hover { filter: brightness(0.92); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.tarjeta {
+  background: var(--blanco); border-radius: var(--radio);
+  box-shadow: var(--sombra-sm); border: 1px solid var(--gris-100);
+}
+
+.campo { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.campo label { font-size: 0.82rem; font-weight: 600; color: var(--gris-700); }
+.campo input, .campo select {
+  padding: 0.6rem 0.75rem; border: 1px solid var(--gris-300);
+  border-radius: var(--radio-sm); background: var(--blanco); color: var(--gris-900);
+}
+.campo input:focus, .campo select:focus {
+  outline: none; border-color: var(--verde-500);
+  box-shadow: 0 0 0 3px var(--verde-100);
+}
+
+.badge {
+  display: inline-flex; align-items: center; padding: 0.2rem 0.6rem;
+  border-radius: 999px; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.02em;
+}
+.badge-verde { background: var(--verde-100); color: var(--verde-700); }
+.badge-ambar { background: #fbedcf; color: #8a5d12; }
+.badge-rojo  { background: #f7dcd6; color: #8f2c1d; }
+.badge-gris  { background: var(--gris-100); color: var(--gris-700); }
+
+.spinner {
+  width: 22px; height: 22px; border: 3px solid var(--gris-300);
+  border-top-color: var(--verde-600); border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+.credenciales-caja { display: flex; flex-direction: column; gap: 0.75rem; }
+.credenciales-caja > div {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  background: var(--crema); padding: 0.75rem 1rem; border-radius: var(--radio-sm);
+}
+.credenciales-caja span { font-size: 0.74rem; font-weight: 600; color: var(--gris-500); text-transform: uppercase; }
+.credenciales-caja code {
+  font-family: ui-monospace, 'Courier New', monospace; font-size: 0.9rem;
+  color: var(--verde-700); word-break: break-all;
+}

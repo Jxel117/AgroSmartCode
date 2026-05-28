@@ -1,0 +1,27 @@
+.dash-selector {
+  padding: 0.55rem 0.9rem; border: 1px solid var(--gris-300);
+  border-radius: var(--radio-sm); background: var(--blanco); font-weight: 500; min-width: 200px;
+}
+.dash-tarjetas {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem;
+}
+.dash-tarjeta-metrica, .dash-tarjeta-estado {
+  padding: 1.3rem; display: flex; flex-direction: column;
+}
+.dash-tarjeta-titulo { font-size: 0.82rem; color: var(--gris-500); font-weight: 600; }
+.dash-tarjeta-valor { font-family: var(--fuente-titulo); font-size: 2.1rem; font-weight: 600; margin-top: 0.35rem; }
+.dash-tarjeta-detalle { font-size: 0.78rem; color: var(--gris-500); margin-top: auto; padding-top: 0.5rem; }
+.dash-grafico { padding: 1.5rem; margin-bottom: 1.25rem; }
+.dash-transiciones { padding: 1.5rem; }
+
+.tabla { width: 100%; border-collapse: collapse; }
+.tabla th {
+  text-align: left; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--gris-500); padding: 0.6rem 0.75rem; border-bottom: 2px solid var(--gris-100);
+}
+.tabla td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--gris-100); font-size: 0.9rem; }
+.tabla tbody tr:hover { background: var(--crema); }
+.tabla-scroll { overflow-x: auto; }
+
+@media (max-width: 1000px) { .dash-tarjetas { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .dash-tarjetas { grid-template-columns: 1fr; } }
