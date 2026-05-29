@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import Modal from '../components/Modal.jsx';
 import { claseBadgeEstado } from '../utils/formato.js';
+import ModalAgricultores from '../components/ModalAgricultores.jsx';
 
 const SUELOS = ['HUMIFERO', 'ARENOSO', 'ARCILLOSO'];
 const CULTIVOS = ['HORTALIZAS', 'FRUTOS_ROJOS'];
@@ -17,6 +18,8 @@ export default function Parcelas() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
+  const [modalAgric, setModalAgric] = useState(false);
+  const [parcelaAgric, setParcelaAgric] = useState(null);
 
   function abrirNuevo() { setEditando(null); setForm(VACIO); setModal(true); }
   function abrirEditar(p) {
@@ -27,6 +30,11 @@ export default function Parcelas() {
       estado: p.estado,
     });
     setModal(true);
+  }
+
+  function abrirAgricultores(p) {
+    setParcelaAgric(p);
+    setModalAgric(true);
   }
 
   async function guardar(e) {
@@ -76,6 +84,7 @@ export default function Parcelas() {
                     {esAdmin && (
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-secundario" style={{ padding: '0.4rem 0.7rem', marginRight: '0.4rem' }} onClick={() => abrirEditar(p)}>Editar</button>
+                        <button className="btn btn-secundario" style={{ padding: '0.4rem 0.7rem', marginRight: '0.4rem' }} onClick={() => abrirAgricultores(p)}>Agricultores</button>
                         <button className="btn btn-peligro" style={{ padding: '0.4rem 0.7rem' }} onClick={() => eliminar(p.id_parcela)}>Eliminar</button>
                       </td>
                     )}
@@ -124,6 +133,11 @@ export default function Parcelas() {
           </button>
         </form>
       </Modal>
+      <ModalAgricultores
+        parcela={parcelaAgric}
+        abierto={modalAgric}
+        onCerrar={() => setModalAgric(false)}
+      />
     </>
   );
 }

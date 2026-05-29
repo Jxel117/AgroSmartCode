@@ -12,6 +12,9 @@ export const parcelasApi = {
   crear: (datos) => api.post('/parcelas', datos),
   actualizar: (id, datos) => api.put(`/parcelas/${id}`, datos),
   eliminar: (id) => api.delete(`/parcelas/${id}`),
+  agricultores: (id) => api.get(`/parcelas/${id}/agricultores`),
+  asignarAgricultor: (id, usuarioId) => api.post(`/parcelas/${id}/agricultores`, { usuarioId }),
+  desasignarAgricultor: (id, usuarioId) => api.delete(`/parcelas/${id}/agricultores`, { data: { usuarioId } }),
 };
 
 export const perfilesApi = {
@@ -53,6 +56,7 @@ export const reportesApi = {
 
 export const usuariosApi = {
   listar: () => api.get('/usuarios'),
+  listarAgricultores: () => api.get('/usuarios/agricultores'),
   crear: (datos) => api.post('/usuarios', datos),
   actualizar: (id, datos) => api.put(`/usuarios/${id}`, datos),
   cambiarEstado: (id, estado) => api.patch(`/usuarios/${id}/estado`, { estado }),

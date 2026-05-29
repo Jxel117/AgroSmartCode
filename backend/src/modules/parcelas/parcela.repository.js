@@ -75,3 +75,15 @@ export async function desasignarAgricultor(parcelaId, usuarioId) {
     [usuarioId, parcelaId]
   );
 }
+
+export async function findAgricultoresAsignados(parcelaId) {
+  const { rows } = await query(
+    `SELECT u.id_usuario, u.nombre, u.apellido, u.correo
+     FROM usuario u
+     JOIN parcela_asignada pa ON pa.usuario_id = u.id_usuario
+     WHERE pa.parcela_id = $1
+     ORDER BY u.apellido, u.nombre`,
+    [parcelaId]
+  );
+  return rows;
+}

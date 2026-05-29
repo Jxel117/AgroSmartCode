@@ -34,3 +34,10 @@ export async function desasignar(req, res) {
   await service.desasignar(req.params.id, req.body.usuarioId);
   res.json({ mensaje: 'Agricultor desasignado' });
 }
+
+import * as parcelaRepo from './parcela.repository.js';
+
+export async function listarAgricultores(req, res) {
+  const agricultores = await parcelaRepo.findAgricultoresAsignados(req.params.id);
+  res.json({ agricultores });
+}

@@ -61,3 +61,13 @@ export async function existeAlgunAdmin() {
   );
   return rows.length > 0;
 }
+
+export async function findAgricultores() {
+  const { rows } = await query(
+    `SELECT id_usuario, nombre, apellido, correo
+     FROM usuario
+     WHERE rol = 'AGRICULTOR' AND estado = 'ACTIVA'
+     ORDER BY apellido, nombre`
+  );
+  return rows;
+}

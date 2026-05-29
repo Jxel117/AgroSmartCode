@@ -13,9 +13,11 @@ const router = Router();
 router.use(authenticate, authorize('ADMINISTRADOR'));
 
 router.get('/', asyncHandler(ctrl.listar));
+router.get('/agricultores', asyncHandler(ctrl.listarAgricultores));
 router.post('/', validate(crearUsuarioSchema), asyncHandler(ctrl.crear));
 router.put('/:id', validate(idParamSchema, 'params'), validate(actualizarUsuarioSchema), asyncHandler(ctrl.actualizar));
 router.patch('/:id/estado', validate(idParamSchema, 'params'), validate(estadoUsuarioSchema), asyncHandler(ctrl.cambiarEstado));
 router.delete('/:id', validate(idParamSchema, 'params'), asyncHandler(ctrl.eliminar));
+
 
 export default router;

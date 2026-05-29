@@ -25,4 +25,8 @@ router.post('/:id/agricultores', authorize('ADMINISTRADOR'),
 router.delete('/:id/agricultores', authorize('ADMINISTRADOR'),
   validate(idParamSchema, 'params'), validate(asignacionSchema), asyncHandler(ctrl.desasignar));
 
+router.get('/:id/agricultores',
+  validate(idParamSchema, 'params'),
+  asyncHandler(ctrl.listarAgricultores));
+
 export default router;

@@ -23,3 +23,10 @@ export async function eliminar(req, res) {
   await service.eliminar(req.params.id, req.user.id);
   res.status(204).send();
 }
+
+import * as repo from './usuario.repository.js';
+
+export async function listarAgricultores(req, res) {
+  const agricultores = await repo.findAgricultores();
+  res.json({ agricultores });
+}
