@@ -6,10 +6,21 @@ import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import Modal from '../components/Modal.jsx';
 import { claseBadgeEstado } from '../utils/formato.js';
 import ModalAgricultores from '../components/ModalAgricultores.jsx';
+import { Plus, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
+import ModalConfiguracionRiego from '../components/ModalConfiguracionRiego.jsx';
+import { toast } from 'sonner';
 
 const SUELOS = ['HUMIFERO', 'ARENOSO', 'ARCILLOSO'];
 const CULTIVOS = ['HORTALIZAS', 'FRUTOS_ROJOS'];
-const VACIO = { nombreDescriptivo: '', tipoSuelo: 'HUMIFERO', tipoCultivo: 'HORTALIZAS', ubicacionDescriptiva: '', estado: 'ACTIVA' };
+
+const VACIO = {
+  nombreDescriptivo: '',
+  tipoSuelo: 'HUMIFERO',
+  tipoCultivo: 'HORTALIZAS',
+  ubicacionDescriptiva: '',
+  estado: 'ACTIVA',
+};
 
 export default function Parcelas() {
   const { esAdmin } = useAuth();
@@ -18,17 +29,45 @@ export default function Parcelas() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
+  const [errorForm, setErrorForm] = useState('');
   const [modalAgric, setModalAgric] = useState(false);
   const [parcelaAgric, setParcelaAgric] = useState(null);
+  const [modalConfig, setModalConfig] = useState(false);
+  const [parcelaConfig, setParcelaConfig] = useState(null);
 
-  function abrirNuevo() { setEditando(null); setForm(VACIO); setModal(true); }
+  function abrirNuevo() {
+    setEditando(null);
+    // Sugerir nombre automatico tipo "Terreno N"
+    const numeros = (datos ?? [])
+      .map((p) => {
+        const match = /^Terreno (\d+)$/.exec(p.nombre_descriptivo);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((n) => n > 0);
+    const siguiente = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
+    setForm({
+      ...VACIO,
+      nombreDescriptivo: `Terreno ${siguiente}`,
+    });
+    setErrorForm('');
+    setModal(true);
+  }
+
+  function abrirConfiguracion(parcela) {
+    setParcelaConfig(parcela);
+    setModalConfig(true);
+  }
+
   function abrirEditar(p) {
     setEditando(p.id_parcela);
     setForm({
-      nombreDescriptivo: p.nombre_descriptivo, tipoSuelo: p.tipo_suelo,
-      tipoCultivo: p.tipo_cultivo, ubicacionDescriptiva: p.ubicacion_descriptiva ?? '',
+      nombreDescriptivo: p.nombre_descriptivo,
+      tipoSuelo: p.tipo_suelo,
+      tipoCultivo: p.tipo_cultivo,
+      ubicacionDescriptiva: p.ubicacion_descriptiva ?? '',
       estado: p.estado,
     });
+    setErrorForm('');
     setModal(true);
   }
 
@@ -37,33 +76,71 @@ export default function Parcelas() {
     setModalAgric(true);
   }
 
+  function traducirCampo(campo) {
+    const traducciones = {
+      nombreDescriptivo: 'Nombre',
+      tipoSuelo: 'Tipo de suelo',
+      tipoCultivo: 'Tipo de cultivo',
+      ubicacionDescriptiva: 'Ubicación',
+      estado: 'Estado',
+    };
+    return traducciones[campo] ?? campo;
+  }
+
   async function guardar(e) {
     e.preventDefault();
     setGuardando(true);
+    setErrorForm('');
     try {
-      if (editando) await parcelasApi.actualizar(editando, form);
-      else await parcelasApi.crear(form);
+      if (editando) {
+        await parcelasApi.actualizar(editando, form);
+      } else {
+        await parcelasApi.crear(form);
+      }
       setModal(false);
       recargar();
     } catch (err) {
-      alert(err.response?.data?.error ?? 'Error al guardar');
+      const detalles = err.response?.data?.details;
+      if (Array.isArray(detalles) && detalles.length > 0) {
+        const lista = detalles.map((d) => `• ${traducirCampo(d.campo)}: ${d.mensaje}`).join('\n');
+        setErrorForm(lista);
+      } else {
+        setErrorForm(err.response?.data?.error ?? 'Error al guardar');
+      }
     } finally {
       setGuardando(false);
     }
   }
 
   async function eliminar(id) {
-    if (!confirm('¿Eliminar esta parcela? Se borraran sus nodos y lecturas.')) return;
-    await parcelasApi.eliminar(id);
-    recargar();
-  }
+  toast('¿Eliminar este terreno?', {
+    description: 'Se borrarán sus dispositivos y lecturas. Esta acción no se puede deshacer.',
+    action: {
+      label: 'Eliminar',
+      onClick: async () => {
+        try {
+          await parcelasApi.eliminar(id);
+          toast.success('Terreno eliminado');
+          recargar();
+        } catch (err) {
+          toast.error(err.response?.data?.error ?? 'No se pudo eliminar');
+        }
+      },
+    },
+  });
+}
 
   return (
     <>
       <EncabezadoPagina
-        titulo="Parcelas"
-        descripcion="Terrenos monitoreados por el sistema"
-        accion={esAdmin && <button className="btn btn-primario" onClick={abrirNuevo}>+ Nueva parcela</button>}
+        titulo="Terrenos"
+        descripcion="Áreas físicas de cultivo donde se instalan los dispositivos. Cada terreno tiene su propia configuración de riego y agricultores asignados."
+        accion={esAdmin && (
+          <button className="btn btn-primario" onClick={abrirNuevo}>
+            <Plus size={16} strokeWidth={2} />
+            Nuevo terreno
+          </button>
+        )}
       />
 
       {cargando ? <div className="spinner" /> : error ? <p style={{ color: 'var(--rojo)' }}>{error}</p> : (
@@ -71,7 +148,14 @@ export default function Parcelas() {
           <div className="tabla-scroll">
             <table className="tabla">
               <thead>
-                <tr><th>Nombre</th><th>Suelo</th><th>Cultivo</th><th>Ubicacion</th><th>Estado</th>{esAdmin && <th></th>}</tr>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Suelo</th>
+                  <th>Cultivo</th>
+                  <th>Ubicación</th>
+                  <th>Estado</th>
+                  {esAdmin && <th></th>}
+                </tr>
               </thead>
               <tbody>
                 {datos.map((p) => (
@@ -83,41 +167,73 @@ export default function Parcelas() {
                     <td><span className={`badge ${claseBadgeEstado(p.estado)}`}>{p.estado}</span></td>
                     {esAdmin && (
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button className="btn btn-secundario" style={{ padding: '0.4rem 0.7rem', marginRight: '0.4rem' }} onClick={() => abrirEditar(p)}>Editar</button>
-                        <button className="btn btn-secundario" style={{ padding: '0.4rem 0.7rem', marginRight: '0.4rem' }} onClick={() => abrirAgricultores(p)}>Agricultores</button>
-                        <button className="btn btn-peligro" style={{ padding: '0.4rem 0.7rem' }} onClick={() => eliminar(p.id_parcela)}>Eliminar</button>
+                        <button className="btn-icono" title="Editar" onClick={() => abrirEditar(p)}>
+                          <Pencil size={16} strokeWidth={1.8} />
+                        </button>
+                        <button className="btn-icono" title="Configuración de riego" onClick={() => abrirConfiguracion(p)}>
+                          <SlidersHorizontal size={16} strokeWidth={1.8} />
+                        </button>
+                        <button className="btn-icono" title="Ver agricultores asignados" onClick={() => abrirAgricultores(p)}>
+                          <UsersIcon size={16} strokeWidth={1.8} />
+                        </button>
+                        <button className="btn-icono btn-icono-peligro" title="Eliminar" onClick={() => eliminar(p.id_parcela)}>
+                          <Trash2 size={16} strokeWidth={1.8} />
+                        </button>
                       </td>
                     )}
                   </tr>
                 ))}
-                {datos.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--gris-500)', padding: '2rem' }}>No hay parcelas.</td></tr>}
+                {datos.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--gris-500)', padding: '2rem' }}>
+                      No hay terrenos. Pulsa "+ Nuevo terreno" para empezar.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      <Modal abierto={modal} onCerrar={() => setModal(false)} titulo={editando ? 'Editar parcela' : 'Nueva parcela'}>
+      <Modal abierto={modal} onCerrar={() => setModal(false)} titulo={editando ? 'Editar terreno' : 'Nuevo terreno'}>
         <form onSubmit={guardar}>
+          {errorForm && (
+            <div className="login-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line' }}>
+              {errorForm}
+            </div>
+          )}
           <div className="campo">
             <label>Nombre descriptivo</label>
             <input value={form.nombreDescriptivo} required onChange={(e) => setForm({ ...form, nombreDescriptivo: e.target.value })} />
+            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
+              Nombre amigable para identificar el terreno. Se sugiere uno automático, pero puedes cambiarlo.
+            </span>
           </div>
           <div className="campo">
             <label>Tipo de suelo</label>
             <select value={form.tipoSuelo} onChange={(e) => setForm({ ...form, tipoSuelo: e.target.value })}>
               {SUELOS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
+              Tipo de tierra del terreno; afecta a la retención de agua.
+            </span>
           </div>
           <div className="campo">
             <label>Tipo de cultivo</label>
             <select value={form.tipoCultivo} onChange={(e) => setForm({ ...form, tipoCultivo: e.target.value })}>
               {CULTIVOS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
+              Cultivo principal sembrado en este terreno.
+            </span>
           </div>
           <div className="campo">
-            <label>Ubicacion</label>
-            <input value={form.ubicacionDescriptiva} onChange={(e) => setForm({ ...form, ubicacionDescriptiva: e.target.value })} />
+            <label>Ubicación</label>
+            <input value={form.ubicacionDescriptiva} onChange={(e) => setForm({ ...form, ubicacionDescriptiva: e.target.value })} placeholder="Ej: Sector Norte, parte alta del lote" />
+            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
+              Descripción textual de dónde se encuentra el terreno.
+            </span>
           </div>
           {editando && (
             <div className="campo">
@@ -129,14 +245,21 @@ export default function Parcelas() {
             </div>
           )}
           <button className="btn btn-primario" type="submit" disabled={guardando} style={{ width: '100%', marginTop: '0.5rem' }}>
-            {guardando ? 'Guardando...' : 'Guardar'}
+            {guardando ? 'Guardando...' : (editando ? 'Actualizar terreno' : 'Crear terreno')}
           </button>
         </form>
       </Modal>
+
       <ModalAgricultores
         parcela={parcelaAgric}
         abierto={modalAgric}
         onCerrar={() => setModalAgric(false)}
+      />
+
+      <ModalConfiguracionRiego
+        abierto={modalConfig}
+        onCerrar={() => setModalConfig(false)}
+        parcela={parcelaConfig}
       />
     </>
   );

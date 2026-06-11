@@ -1,0 +1,13 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.prod'
+      - '--build-arg'
+      - 'VITE_API_URL=$_VITE_API_URL'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/agrosmart-498305/agrosmart/agrosmart-frontend-prod:latest'
+      - '.'
+images:
+  - 'us-central1-docker.pkg.dev/agrosmart-498305/agrosmart/agrosmart-frontend-prod:latest'

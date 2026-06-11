@@ -1,14 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import {
+  LayoutDashboard, Cpu, Map, SlidersHorizontal,
+  Bell, Users, LogOut,
+} from 'lucide-react';
 import './Layout.css';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
-  { to: '/parcelas', label: 'Parcelas', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-  { to: '/nodos', label: 'Nodos', icon: 'M5 12h14M5 12a2 2 0 100-4 2 2 0 000 4zm14 0a2 2 0 100-4 2 2 0 000 4zM12 19a2 2 0 100-4 2 2 0 000 4z' },
-  { to: '/alertas', label: 'Alertas', icon: 'M12 2L1 21h22L12 2zm0 6v6m0 4h.01' },
-  { to: '/perfiles', label: 'Perfiles', icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z', soloAdmin: true },
-  { to: '/usuarios', label: 'Usuarios', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zm14 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', soloAdmin: true },
+  { to: '/',         label: 'Dashboard',           Icono: LayoutDashboard },
+  { to: '/nodos',    label: 'Dispositivos',        Icono: Cpu },
+  { to: '/parcelas', label: 'Terrenos',            Icono: Map },
+  { to: '/perfiles', label: 'Parámetros de Riego', Icono: SlidersHorizontal, soloAdmin: true },
+  { to: '/alertas',  label: 'Alertas',             Icono: Bell },
+  { to: '/usuarios', label: 'Usuarios',            Icono: Users, soloAdmin: true },
 ];
 
 export default function Layout() {
@@ -26,7 +30,7 @@ export default function Layout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-marca">
-          <div className="sidebar-logo">AS</div>
+          <div className="sidebar-logo"><img src="/agrsmart1.svg" alt="AgroSmart" /></div>
           <div>
             <div className="sidebar-titulo">AgroSmart</div>
             <div className="sidebar-subtitulo">Riego inteligente</div>
@@ -36,14 +40,11 @@ export default function Layout() {
         <nav className="sidebar-nav">
           {navItems
             .filter((item) => !item.soloAdmin || esAdmin)
-            .map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.to === '/'}
+            .map(({ to, label, Icono }) => (
+              <NavLink key={to} to={to} end={to === '/'}
                 className={({ isActive }) => `nav-item ${isActive ? 'activo' : ''}`}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={item.icon} />
-                </svg>
-                <span>{item.label}</span>
+                <Icono size={19} strokeWidth={1.8} />
+                <span>{label}</span>
               </NavLink>
             ))}
         </nav>
@@ -58,11 +59,23 @@ export default function Layout() {
           <div className="barra-usuario">
             <div className="avatar">{iniciales.toUpperCase()}</div>
             <div>
-              <div className="usuario-nombre">{usuario?.nombre} {usuario?.apellido}</div>
-              <div className="usuario-correo">{usuario?.correo}</div>
+              <strong style={{ display: 'block', fontSize: '0.95rem' }}>
+                {usuario?.nombre} {usuario?.apellido}
+              </strong>
+              <span style={{ fontSize: '0.78rem', color: 'var(--gris-500)' }}>
+                {usuario?.correo}
+              </span>
+              {usuario?.empresaIdentificador && (
+                <span style={{ display: 'block', fontSize: '0.74rem', color: 'var(--verde-600)', fontWeight: 600, marginTop: '0.15rem' }}>
+                  {usuario.empresaIdentificador}
+                </span>
+              )}
             </div>
           </div>
-          <button className="btn btn-secundario" onClick={salir}>Cerrar sesion</button>
+          <button className="btn btn-secundario" onClick={salir}>
+            <LogOut size={16} strokeWidth={2} />
+            Cerrar sesión
+          </button>
         </header>
 
         <main className="area-contenido">

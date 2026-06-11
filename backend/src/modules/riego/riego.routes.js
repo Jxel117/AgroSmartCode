@@ -21,7 +21,10 @@ const manualSchema = z.object({
 const perfilSchema = z.object({ perfilId: z.string().uuid() });
 const actuadorSchema = z.object({ tipo: z.enum(['RELE_BOMBA', 'ELECTROVALVULA']) });
 
+// Listado de configuraciones vigentes de TODAS las parcelas de la empresa
+router.get('/configuraciones', asyncHandler(ctrl.listarConfiguracionesEmpresa));
 router.get('/:parcelaId/configuracion', validate(parcelaParam, 'params'), asyncHandler(ctrl.obtenerConfig));
+router.get('/:parcelaId/configuracion/historial', validate(parcelaParam, 'params'), asyncHandler(ctrl.historialConfig));
 router.post('/:parcelaId/configuracion/manual', authorize('ADMINISTRADOR'),
   validate(parcelaParam, 'params'), validate(manualSchema), asyncHandler(ctrl.aplicarManual));
 router.post('/:parcelaId/configuracion/perfil', authorize('ADMINISTRADOR'),

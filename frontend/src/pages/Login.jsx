@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import ReCAPTCHA from 'react-google-recaptcha';
+import CampoPassword from '../components/CampoPassword.jsx';
+import FondoCarrusel from '../components/FondoCarrusel.jsx';
 import './Login.css';
 
 export default function Login() {
@@ -8,18 +11,30 @@ export default function Login() {
   const navigate = useNavigate();
   const [correo, setCorreo] = useState('');
   const [contra, setContra] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(null);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const captchaRef = useRef(null);
+
+  const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
   async function manejarSubmit(e) {
     e.preventDefault();
     setError('');
+
+    if (!captchaToken) {
+      setError('Por favor completa la verificación de seguridad');
+      return;
+    }
+
     setCargando(true);
     try {
-      await login(correo, contra);
+      await login(correo, contra, captchaToken);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error ?? 'No se pudo iniciar sesion');
+      captchaRef.current?.reset();
+      setCaptchaToken(null);
     } finally {
       setCargando(false);
     }
@@ -27,20 +42,16 @@ export default function Login() {
 
   return (
     <div className="login-pagina">
-      <div className="login-marca">
-        <div className="login-marca-contenido">
-          <div className="login-logo">AS</div>
-          <h1>AgroSmart</h1>
-          <p>Monitoreo y control de riego agricola basado en IoT. Decisiones de riego automaticas, en tiempo real.</p>
+      <FondoCarrusel />
+
+      <div className="login-tarjeta">
+        <div className="login-encabezado">
+          <img className="login-logo" src="/agrosmart.svg" alt="AgroSmart" />
+          <h1 className="login-marca-titulo">AgroSmart</h1>
+          <p className="login-marca-subtitulo">Riego inteligente basado en IoT</p>
         </div>
-        <div className="login-marca-decoracion" />
-      </div>
 
-      <div className="login-formulario-lado">
-        <form className="login-formulario" onSubmit={manejarSubmit}>
-          <h2>Iniciar sesion</h2>
-          <p className="login-ayuda">Ingresa tus credenciales para continuar</p>
-
+        <form onSubmit={manejarSubmit}>
           {error && <div className="login-error">{error}</div>}
 
           <div className="campo">
@@ -49,15 +60,33 @@ export default function Login() {
               onChange={(e) => setCorreo(e.target.value)} placeholder="tu@correo.com" />
           </div>
 
-          <div className="campo">
-            <label htmlFor="contra">Contraseña</label>
-            <input id="contra" type="password" value={contra} required
-              onChange={(e) => setContra(e.target.value)} placeholder="••••••••" />
+          <CampoPassword
+            id="contra"
+            label="Contraseña"
+            value={contra}
+            onChange={(e) => setContra(e.target.value)}
+          />
+
+          <div className="login-captcha">
+            <ReCAPTCHA
+              ref={captchaRef}
+              sitekey={siteKey}
+              onChange={(token) => setCaptchaToken(token)}
+              onExpired={() => setCaptchaToken(null)}
+            />
           </div>
 
-          <button className="btn btn-primario login-boton" type="submit" disabled={cargando}>
+          <button className="btn btn-primario login-boton" type="submit" disabled={cargando || !captchaToken}>
             {cargando ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : 'Entrar'}
           </button>
+
+          <div className="login-enlaces">
+            <Link to="/olvidar-password">¿Olvidaste tu contraseña?</Link>
+            <span className="login-enlaces-secundario">
+              ¿Eres dueño de una finca?{' '}
+              <Link to="/registrar-empresa">Registra tu empresa</Link>
+            </span>
+          </div>
         </form>
       </div>
     </div>
