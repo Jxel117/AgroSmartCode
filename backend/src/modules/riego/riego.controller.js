@@ -32,3 +32,11 @@ export async function estadoAfd(req, res) {
   const transiciones = await afdRepo.findTransiciones(req.params.parcelaId, 50);
   res.json({ afd, transiciones });
 }
+
+export async function historialConfig(req, res) {
+  res.json({ historial: await configService.obtenerHistorial(req.params.parcelaId) });
+}
+
+export async function listarConfiguracionesEmpresa(req, res) {
+  res.json({ configuraciones: await configService.listarVigentesPorEmpresa(req.user.empresa) });
+}

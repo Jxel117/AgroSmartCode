@@ -1,10 +1,14 @@
 import { query, withTransaction } from '../../db/pool.js';
 
 const COLS = `id_nodo, parcela_id, tipo_sensor, modelo_hardware, ubicacion_descriptiva,
-  latitud, longitud, protocolo_comunicacion, estado, fecha_registro, fecha_ultima_lectura`;
+  latitud, longitud, protocolo_comunicacion, estado, empresa_identificador,
+  fecha_registro, fecha_ultima_lectura`;
 
-export async function findAll() {
-  const { rows } = await query(`SELECT ${COLS} FROM nodo ORDER BY fecha_registro DESC`);
+export async function findByEmpresa(empresa) {
+  const { rows } = await query(
+    `SELECT ${COLS} FROM nodo WHERE empresa_identificador = $1 ORDER BY fecha_registro DESC`,
+    [empresa]
+  );
   return rows;
 }
 
@@ -37,11 +41,11 @@ export async function createConCredencial(nodo, credencial) {
     const { rows } = await client.query(
       `INSERT INTO nodo
          (parcela_id, tipo_sensor, modelo_hardware, ubicacion_descriptiva,
-          latitud, longitud, protocolo_comunicacion, estado)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'SIN_CONFIGURAR')
+          latitud, longitud, protocolo_comunicacion, estado, empresa_identificador)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'SIN_CONFIGURAR',$8)
        RETURNING ${COLS}`,
       [nodo.parcelaId, nodo.tipoSensor, nodo.modeloHardware, nodo.ubicacionDescriptiva,
-       nodo.latitud, nodo.longitud, nodo.protocoloComunicacion]
+       nodo.latitud, nodo.longitud, nodo.protocoloComunicacion, nodo.empresaIdentificador]
     );
     const nuevoNodo = rows[0];
 

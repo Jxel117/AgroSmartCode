@@ -1,11 +1,5 @@
 import api from './client.js';
 
-export const authApi = {
-  login: (correo, contra) => api.post('/auth/login', { correo, contra }),
-  perfil: () => api.get('/auth/perfil'),
-  logout: () => api.post('/auth/logout'),
-};
-
 export const parcelasApi = {
   listar: () => api.get('/parcelas'),
   obtener: (id) => api.get(`/parcelas/${id}`),
@@ -25,9 +19,10 @@ export const perfilesApi = {
 };
 
 export const nodosApi = {
-  listar: (parcelaId) => api.get('/nodos', { params: parcelaId ? { parcelaId } : {} }),
+  listar: () => api.get('/nodos'),
   crear: (datos) => api.post('/nodos', datos),
   actualizar: (id, datos) => api.put(`/nodos/${id}`, datos),
+  cambiarEstado: (id, estado) => api.patch(`/nodos/${id}/estado`, { estado }),
   eliminar: (id) => api.delete(`/nodos/${id}`),
 };
 
@@ -38,6 +33,8 @@ export const lecturasApi = {
 
 export const riegoApi = {
   configuracion: (parcelaId) => api.get(`/riego/${parcelaId}/configuracion`),
+  historial: (parcelaId) => api.get(`/riego/${parcelaId}/configuracion/historial`),
+  listarConfiguraciones: () => api.get('/riego/configuraciones'),
   aplicarManual: (parcelaId, datos) => api.post(`/riego/${parcelaId}/configuracion/manual`, datos),
   aplicarPerfil: (parcelaId, perfilId) => api.post(`/riego/${parcelaId}/configuracion/perfil`, { perfilId }),
   actuadores: (parcelaId) => api.get(`/riego/${parcelaId}/actuadores`),
@@ -61,4 +58,21 @@ export const usuariosApi = {
   actualizar: (id, datos) => api.put(`/usuarios/${id}`, datos),
   cambiarEstado: (id, estado) => api.patch(`/usuarios/${id}/estado`, { estado }),
   eliminar: (id) => api.delete(`/usuarios/${id}`),
+  cambiarMiPassword: (passwordActual, passwordNueva) =>
+    api.patch('/usuarios/mi-password', { passwordActual, passwordNueva }),
+  resetearPassword: (id, passwordNueva) =>
+    api.patch(`/usuarios/${id}/password`, { passwordNueva }),
+  parcelas: (id) => api.get(`/usuarios/${id}/parcelas`),
+  asignarParcela: (id, parcelaId) => api.post(`/usuarios/${id}/parcelas`, { parcelaId }),
+  desasignarParcela: (id, parcelaId) => api.delete(`/usuarios/${id}/parcelas`, { data: { parcelaId } }),
+};
+
+export const authApi = {
+  login: (correo, contra, captchaToken) => api.post('/auth/login', { correo, contra, captchaToken }),
+  perfil: () => api.get('/auth/perfil'),
+  logout: () => api.post('/auth/logout'),
+  registrarEmpresa: (datos) => api.post('/auth/registrar-empresa', datos),
+  solicitarRecuperacion: (correoValidacion) => api.post('/auth/recuperar/solicitar', { correoValidacion }),
+  verificarToken: (token) => api.get(`/auth/recuperar/verificar/${token}`),
+  completarRecuperacion: (token, passwordNueva) => api.post(`/auth/recuperar/completar/${token}`, { passwordNueva }),
 };

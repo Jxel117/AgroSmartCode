@@ -9,7 +9,12 @@ export function authenticate(req, res, next) {
   const token = header.slice(7);
   try {
     const payload = verifyToken(token);
-    req.user = { id: payload.sub, rol: payload.rol, correo: payload.correo };
+    req.user = {
+      id: payload.sub,
+      rol: payload.rol,
+      correo: payload.correo,
+      empresa: payload.empresa ?? null,
+    };
     next();
   } catch {
     next(AppError.unauthorized('Token invalido o expirado'));

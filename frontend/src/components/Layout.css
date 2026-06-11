@@ -9,9 +9,11 @@
 .sidebar-marca { display: flex; align-items: center; gap: 0.75rem; padding: 0 0.5rem 1.75rem; }
 .sidebar-logo {
   width: 42px; height: 42px; border-radius: 12px;
-  background: var(--verde-500); color: var(--blanco);
-  display: grid; place-items: center; font-family: var(--fuente-titulo);
-  font-weight: 700; font-size: 1.1rem;
+  background: var(--verde-500);
+  display: grid; place-items: center; overflow: hidden;
+}
+.sidebar-logo img {
+  width: 28px; height: 28px; object-fit: contain;
 }
 .sidebar-titulo { font-family: var(--fuente-titulo); font-size: 1.25rem; color: var(--blanco); font-weight: 600; }
 .sidebar-subtitulo { font-size: 0.74rem; color: var(--verde-300); }
@@ -36,6 +38,9 @@
 .barra-superior {
   display: flex; align-items: center; justify-content: space-between;
   padding: 1rem 2rem; background: var(--blanco); border-bottom: 1px solid var(--gris-100);
+}
+.barra-logo-modulo img {
+  width: 32px; height: 32px; object-fit: contain; display: block;
 }
 .barra-usuario { display: flex; align-items: center; gap: 0.75rem; }
 .avatar {

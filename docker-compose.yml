@@ -1,0 +1,55 @@
+services:
+
+  db:
+    image: postgres:14-alpine
+    container_name: agrosmart-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agrosmart
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # 5433 en tu host para no interrumpir la bd local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agrosmart"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: agrosmart-backend
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: agrosmart
+      JWT_SECRET: cambia_esto_a_una_cadena_aleatoria_larga
+      JWT_EXPIRES_IN: 8h
+      BCRYPT_ROUNDS: 10
+      CORS_ORIGIN: http://localhost:8080
+      MQTT_ENABLED: "false"
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:4000/api
+    container_name: agrosmart-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

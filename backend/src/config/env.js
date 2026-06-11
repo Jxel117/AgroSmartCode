@@ -43,4 +43,19 @@ export const env = {
     passwdFile: process.env.MQTT_PASSWD_FILE ?? '',
     autoRegister: (process.env.MQTT_AUTO_REGISTER ?? 'false') === 'true',
   },
+
+  // Configuración de email
+  email: {
+    enabled: (process.env.EMAIL_ENABLED ?? 'false') === 'true',
+    user: process.env.EMAIL_USER ?? '',
+    appPassword: process.env.EMAIL_APP_PASSWORD ?? '',
+    fromName: process.env.EMAIL_FROM_NAME ?? 'AgroSmart',
+  },
+  appUrlFrontend: process.env.APP_URL_FRONTEND ?? 'http://localhost:8080',
+
+  // Configuración de reCAPTCHA
+  recaptcha: {
+    secret: process.env.RECAPTCHA_SECRET ?? '',
+    enabled: (process.env.RECAPTCHA_ENABLED ?? 'false') === 'true',
+  },
 };

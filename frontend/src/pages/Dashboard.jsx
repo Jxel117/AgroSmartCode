@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
+import { useAuth } from '../context/AuthContext.jsx'; // Importación de useAuth
 import { parcelasApi, lecturasApi, riegoApi } from '../api/endpoints.js';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import { hora, fechaHora, etiquetaEstadoAfd, claseBadgeEstado } from '../utils/formato.js';
 import './Dashboard.css';
 
 export default function Dashboard() {
+  const { usuario } = useAuth(); // Extracción del usuario desde el contexto
   const [parcelas, setParcelas] = useState([]);
   const [parcelaId, setParcelaId] = useState('');
   const [lecturas, setLecturas] = useState([]);
@@ -66,6 +68,13 @@ export default function Dashboard() {
     return (
       <>
         <EncabezadoPagina titulo="Dashboard" />
+        
+        {usuario?.empresaIdentificador && (
+          <div style={{ background: 'var(--verde-50)', color: 'var(--verde-700)', padding: '0.6rem 1rem', borderRadius: 'var(--radio-sm)', marginBottom: '1.2rem', fontSize: '0.88rem', fontWeight: 500 }}>
+            Empresa: <strong>{usuario.empresaIdentificador}</strong>
+          </div>
+        )}
+
         <div className="tarjeta" style={{ padding: '2.5rem', textAlign: 'center' }}>
           <p style={{ color: 'var(--gris-500)' }}>No tienes parcelas asignadas todavia.</p>
         </div>
@@ -77,7 +86,7 @@ export default function Dashboard() {
     <>
       <EncabezadoPagina
         titulo="Dashboard"
-        descripcion="Estado del riego en tiempo real"
+        descripcion="Monitoreo en tiempo real del riego automatizado en tus terrenos. Aquí ves humedad, temperatura, estado del riego y eventos recientes."
         accion={
           <select className="dash-selector" value={parcelaId} onChange={(e) => setParcelaId(e.target.value)}>
             {parcelas.map((p) => (
@@ -86,6 +95,12 @@ export default function Dashboard() {
           </select>
         }
       />
+
+      {usuario?.empresaIdentificador && (
+        <div style={{ background: 'var(--verde-50)', color: 'var(--verde-700)', padding: '0.6rem 1rem', borderRadius: 'var(--radio-sm)', marginBottom: '1.2rem', fontSize: '0.88rem', fontWeight: 500 }}>
+          Empresa: <strong>{usuario.empresaIdentificador}</strong>
+        </div>
+      )}
 
       {cargando ? (
         <div style={{ display: 'grid', placeItems: 'center', padding: '4rem' }}><div className="spinner" /></div>

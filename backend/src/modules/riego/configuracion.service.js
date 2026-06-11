@@ -47,3 +47,11 @@ export async function aplicarPerfil(parcelaId, perfilId) {
 
   return config;
 }
+
+export async function obtenerHistorial(parcelaId) {
+  return configRepo.findHistorial(parcelaId);
+}
+
+export async function listarVigentesPorEmpresa(empresa) {
+  return configRepo.findVigentesPorEmpresa(empresa);
+}
