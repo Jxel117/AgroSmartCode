@@ -66,4 +66,11 @@ router.post('/recuperar/completar/:token',
   asyncHandler(recuperacionCtrl.completar)
 );
 
+export {
+  registrarEmpresaSchema,
+  solicitarSchema,
+  completarSchema
+};
+
+
 export default router;
