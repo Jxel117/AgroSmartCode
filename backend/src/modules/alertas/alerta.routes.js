@@ -11,6 +11,8 @@ router.use(authenticate);
 const idParam = z.object({ id: z.string().uuid() });
 
 router.get('/', asyncHandler(ctrl.listar));
+router.get('/contar', asyncHandler(ctrl.contar));
+router.patch('/marcar-todas-leidas', asyncHandler(ctrl.marcarTodasLeidas));
 router.patch('/:id/leida', validate(idParam, 'params'), asyncHandler(ctrl.marcarLeida));
 router.patch('/:id/resuelta', validate(idParam, 'params'), asyncHandler(ctrl.marcarResuelta));
 
