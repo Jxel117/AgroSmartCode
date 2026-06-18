@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { useAuth } from '../context/AuthContext.jsx'; // Importación de useAuth
+import { useAuth } from '../context/AuthContext.jsx';
+import { useEventoSocket } from '../context/SocketContext.jsx';
 import { parcelasApi, lecturasApi, riegoApi } from '../api/endpoints.js';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import { hora, fechaHora, etiquetaEstadoAfd, claseBadgeEstado } from '../utils/formato.js';
 import './Dashboard.css';
 
+const VENTANA_MAX = 80; // numero maximo de lecturas en pantalla
+
 export default function Dashboard() {
-  const { usuario } = useAuth(); // Extracción del usuario desde el contexto
+  const { usuario } = useAuth();
   const [parcelas, setParcelas] = useState([]);
   const [parcelaId, setParcelaId] = useState('');
   const [lecturas, setLecturas] = useState([]);
@@ -27,7 +31,7 @@ export default function Dashboard() {
     });
   }, []);
 
-  // Cargar datos de la parcela seleccionada (con autorefresco)
+  // Cargar datos de la parcela seleccionada (con autorefresco como backup)
   useEffect(() => {
     if (!parcelaId) return;
     let activo = true;
@@ -35,7 +39,7 @@ export default function Dashboard() {
     async function cargar() {
       try {
         const [lec, afdRes] = await Promise.all([
-          lecturasApi.porParcela(parcelaId, 80),
+          lecturasApi.porParcela(parcelaId, VENTANA_MAX),
           riegoApi.afd(parcelaId),
         ]);
         if (!activo) return;
@@ -53,9 +57,66 @@ export default function Dashboard() {
 
     setCargando(true);
     cargar();
-    const intervalo = setInterval(cargar, 15000);
+    const intervalo = setInterval(cargar, 30000); // backup cada 30s
     return () => { activo = false; clearInterval(intervalo); };
   }, [parcelaId]);
+
+  // === SUSCRIPCIONES WEBSOCKET ===
+
+  // Lectura nueva: si es de la parcela actual, anadir al grafico en vivo
+  const onLecturaNueva = useCallback((lectura) => {
+    if (lectura.parcela_id !== parcelaId) return;
+
+    setLecturas((prev) => {
+      const nueva = [...prev, lectura];
+      // Mantener ventana maxima recortando lo mas antiguo
+      if (nueva.length > VENTANA_MAX) {
+        return nueva.slice(nueva.length - VENTANA_MAX);
+      }
+      return nueva;
+    });
+  }, [parcelaId]);
+
+  // Las alertas ya no muestran toast aqui para evitar saturar el Dashboard.
+  // Solo se notifican via el contador en el sidebar.
+  const onAlertaNueva = useCallback(() => {
+    // Sin toast. El badge del sidebar se actualiza solo.
+  }, []);
+
+  // Transicion AFD: si es de la parcela actual, refrescar y mostrar toast
+  const onTransicionAfd = useCallback((transicion) => {
+    if (transicion.parcela_id !== parcelaId) return;
+
+    // Actualizar el estado del AFD mostrado
+    setAfd((prev) => prev ? { ...prev, estado_actual: transicion.estadoDestino, fecha_ultimo_cambio_estado: transicion.timestamp } : prev);
+
+    // Insertar la transicion al inicio de la tabla
+    setTransiciones((prev) => [{
+      id_transicion: `live-${Date.now()}`,
+      estado_origen: transicion.estadoOrigen,
+      estado_destino: transicion.estadoDestino,
+      causa_transicion: transicion.causa,
+      timestamp_utc: transicion.timestamp,
+    }, ...prev].slice(0, 50));
+
+    // Toast con la transicion
+    const origen = etiquetaEstadoAfd(transicion.estadoOrigen);
+    const destino = etiquetaEstadoAfd(transicion.estadoDestino);
+    if (transicion.accionActuador === 'ENCENDER') {
+      toast.success(`Riego activado: ${origen} → ${destino}`);
+    } else if (transicion.accionActuador === 'APAGAR') {
+      toast.info(`Riego detenido: ${origen} → ${destino}`);
+    } else {
+      toast(`${origen} → ${destino}`, { description: transicion.causa });
+    }
+  }, [parcelaId]);
+
+  // Registrar las suscripciones
+  useEventoSocket('lectura_nueva', onLecturaNueva);
+  useEventoSocket('alerta_nueva', onAlertaNueva);
+  useEventoSocket('transicion_afd', onTransicionAfd);
+
+  // === RENDER ===
 
   const ultima = lecturas[lecturas.length - 1];
   const datosGrafico = lecturas.map((l) => ({
@@ -68,7 +129,7 @@ export default function Dashboard() {
     return (
       <>
         <EncabezadoPagina titulo="Dashboard" />
-        
+
         {usuario?.empresaIdentificador && (
           <div style={{ background: 'var(--verde-50)', color: 'var(--verde-700)', padding: '0.6rem 1rem', borderRadius: 'var(--radio-sm)', marginBottom: '1.2rem', fontSize: '0.88rem', fontWeight: 500 }}>
             Empresa: <strong>{usuario.empresaIdentificador}</strong>

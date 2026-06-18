@@ -32,7 +32,7 @@ export async function verificarRecaptcha(token, ip) {
       body: params.toString(),
     });
     const data = await respuesta.json();
-
+    console.log('[CAPTCHA] Respuesta de Google:', JSON.stringify(data));
     if (data.success) {
       return { valido: true };
     }

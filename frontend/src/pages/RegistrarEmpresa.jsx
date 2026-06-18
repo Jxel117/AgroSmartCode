@@ -30,7 +30,7 @@ export default function RegistrarEmpresa() {
     try {
       const { data } = await authApi.registrarEmpresa(form);
       setExito(data);
-      toast.success('Empresa registrada correctamente');
+      toast.success('Revisa tu correo para activar tu cuenta.');
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
@@ -64,7 +64,7 @@ export default function RegistrarEmpresa() {
               borderRadius: '12px',
               marginBottom: '1.2rem',
             }}>
-              <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>¡Empresa registrada!</p>
+              <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>¡Activa tu cuenta!</p>
               <p style={{ fontSize: '0.88rem', marginBottom: '0.7rem' }}>
                 Enviamos un enlace de activación a:<br />
                 <strong>{exito.correoValidacion}</strong>

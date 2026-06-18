@@ -1,6 +1,8 @@
 import { query, withTransaction } from '../../db/pool.js';
 
 // Obtiene (o crea) la instancia de AFD de una parcela
+// Obtiene (o crea) la instancia de AFD de una parcela.
+// Si ya existe, actualiza n_intentos_fallidos_max si cambio en la configuracion.
 export async function findOrCreateByParcela(parcelaId, nIntentosMax = 3) {
   const { rows } = await query(
     `SELECT id_afd, parcela_id, estado_actual, contador_intentos_fallidos,
@@ -8,7 +10,18 @@ export async function findOrCreateByParcela(parcelaId, nIntentosMax = 3) {
      FROM afd_instancia WHERE parcela_id = $1`,
     [parcelaId]
   );
-  if (rows[0]) return rows[0];
+
+  if (rows[0]) {
+    // Si el limite de reintentos cambio en la configuracion, actualizar el AFD
+    if (Number(rows[0].n_intentos_fallidos_max) !== Number(nIntentosMax)) {
+      await query(
+        `UPDATE afd_instancia SET n_intentos_fallidos_max = $2 WHERE id_afd = $1`,
+        [rows[0].id_afd, nIntentosMax]
+      );
+      rows[0].n_intentos_fallidos_max = nIntentosMax;
+    }
+    return rows[0];
+  }
 
   const insert = await query(
     `INSERT INTO afd_instancia (parcela_id, n_intentos_fallidos_max)

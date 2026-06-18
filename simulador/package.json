@@ -1,9 +1,9 @@
 {
-  "name": "simulador",
+  "name": "agrosmart-simulador",
   "version": "1.0.0",
   "type": "module",
-  "main": "nodo.js",
-  "dependencies": {
-    "mqtt": "..."
+  "scripts": {
+    "mqtt": "node nodo.js",
+    "rest": "node nodo-rest.js"
   }
 }

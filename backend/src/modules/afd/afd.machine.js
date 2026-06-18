@@ -24,7 +24,8 @@ export function transitar(ctx) {
   const { estadoActual, config, lectura } = ctx;
   let contador = ctx.contadorFallidos;
 
-  // Lectura invalida: cuenta como intento fallido y puede llevar a FALLO
+  // Lectura invalida: incrementar contador y mantener estado actual.
+  // Solo pasamos a FALLO cuando se alcanza el limite (CA del RF-04).
   if (lectura.estadoLectura !== 'VALIDA') {
     contador += 1;
     if (contador >= ctx.nIntentosMax) {
@@ -36,11 +37,12 @@ export function transitar(ctx) {
         contadorFallidos: contador,
       };
     }
+    // Aun no se alcanzo el limite: mantener estado y solo subir contador
     return {
-      estadoDestino: ESTADOS.FALLO,
+      estadoDestino: estadoActual,
       simbolo: 'G_TIMEOUT_N',
       accionActuador: null,
-      causa: 'Lectura invalida del sensor',
+      causa: `Lectura invalida (${contador}/${ctx.nIntentosMax})`,
       contadorFallidos: contador,
     };
   }

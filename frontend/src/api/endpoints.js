@@ -43,8 +43,10 @@ export const riegoApi = {
 
 export const alertasApi = {
   listar: (estado) => api.get('/alertas', { params: estado ? { estado } : {} }),
+  contar: () => api.get('/alertas/contar'),
   marcarLeida: (id) => api.patch(`/alertas/${id}/leida`),
   marcarResuelta: (id) => api.patch(`/alertas/${id}/resuelta`),
+  marcarTodasLeidas: () => api.patch('/alertas/marcar-todas-leidas'),
 };
 
 export const reportesApi = {

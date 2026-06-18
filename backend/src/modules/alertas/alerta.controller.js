@@ -16,3 +16,13 @@ export async function marcarResuelta(req, res) {
   if (!alerta) throw AppError.notFound('Alerta no encontrada');
   res.json({ alerta });
 }
+
+export async function contar(req, res) {
+  const total = await repo.contarNoLeidas(req.user.empresa);
+  res.json({ total });
+}
+
+export async function marcarTodasLeidas(req, res) {
+  const total = await repo.marcarTodasLeidas(req.user.empresa);
+  res.json({ marcadas: total });
+}

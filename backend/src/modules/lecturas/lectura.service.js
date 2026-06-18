@@ -5,6 +5,11 @@ import * as actuadorRepo from '../riego/actuador.repository.js';
 import * as afdRepo from '../afd/afd.repository.js';
 import * as alertaRepo from '../alertas/alerta.repository.js';
 import { transitar, ESTADOS } from '../afd/afd.machine.js';
+import {
+  emitirLecturaNueva,
+  emitirAlertaNueva,
+  emitirTransicionAfd,
+} from '../../realtime/index.js';
 
 // Valida fisicamente la lectura y devuelve su estado
 function clasificarLectura({ humedad, temperatura }) {
@@ -29,6 +34,14 @@ export async function ingestar(nodoId, datos) {
   });
   await lecturaRepo.actualizarUltimaLecturaNodo(nodoId);
 
+  // === WS: emitir lectura nueva a la empresa del nodo ===
+  if (nodo.empresa_identificador) {
+    emitirLecturaNueva(nodo.empresa_identificador, {
+      ...lectura,
+      parcela_id: nodo.parcela_id,
+    });
+  }
+
   const resultado = { lectura, transicion: null, alertas: [] };
 
   // 2. Si el nodo no esta asociado a una parcela, terminamos aqui
@@ -44,20 +57,25 @@ export async function ingestar(nodoId, datos) {
       valorDisparador: null,
     });
     resultado.alertas.push(a);
+    emitirAlertaNueva(nodo.empresa_identificador, a);
   } else if (config) {
     if (datos.humedad != null && Number(datos.humedad) < Number(config.umin_critico)) {
-      resultado.alertas.push(await alertaRepo.create({
+      const a = await alertaRepo.create({
         parcelaId: nodo.parcela_id, nodoId,
         tipoAlerta: 'HUMEDAD_CRITICA_BAJA', severidad: 'CRITICA',
         mensaje: `Humedad critica: ${datos.humedad}%`, valorDisparador: datos.humedad,
-      }));
+      });
+      resultado.alertas.push(a);
+      emitirAlertaNueva(nodo.empresa_identificador, a);
     }
     if (datos.temperatura != null && Number(datos.temperatura) > Number(config.t_maximo)) {
-      resultado.alertas.push(await alertaRepo.create({
+      const a = await alertaRepo.create({
         parcelaId: nodo.parcela_id, nodoId,
         tipoAlerta: 'TEMPERATURA_CRITICA_ALTA', severidad: 'ADVERTENCIA',
         mensaje: `Temperatura alta: ${datos.temperatura}C`, valorDisparador: datos.temperatura,
-      }));
+      });
+      resultado.alertas.push(a);
+      emitirAlertaNueva(nodo.empresa_identificador, a);
     }
   }
 
@@ -103,6 +121,13 @@ export async function ingestar(nodoId, datos) {
       causa: decision.causa,
       accionActuador: decision.accionActuador,
     };
+
+    // === WS: emitir transicion AFD a la empresa del nodo ===
+    emitirTransicionAfd(nodo.empresa_identificador, {
+      parcela_id: nodo.parcela_id,
+      ...resultado.transicion,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   return resultado;

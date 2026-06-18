@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
+import { CheckCheck } from 'lucide-react';
 import { alertasApi } from '../api/endpoints.js';
 import { useFetch } from '../hooks/useFetch.js';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
@@ -18,14 +20,46 @@ export default function Alertas() {
     [filtro]
   );
 
-  async function leida(id) { await alertasApi.marcarLeida(id); recargar(); }
-  async function resuelta(id) { await alertasApi.marcarResuelta(id); recargar(); }
+  async function leida(id) {
+    await alertasApi.marcarLeida(id);
+    recargar();
+  }
+
+  async function resuelta(id) {
+    await alertasApi.marcarResuelta(id);
+    recargar();
+  }
+
+  async function marcarTodas() {
+    try {
+      const { data } = await alertasApi.marcarTodasLeidas();
+      if (data.marcadas === 0) {
+        toast.info('No habia alertas activas');
+      } else {
+        toast.success(`${data.marcadas} alerta(s) marcada(s) como leida(s)`);
+      }
+      recargar();
+    } catch (err) {
+      toast.error(err.response?.data?.error ?? 'No se pudo marcar como leidas');
+    }
+  }
+
+  // Cuantas hay activas en la vista actual (para mostrar el boton solo cuando aplica)
+  const hayActivas = datos?.some((a) => a.estado === 'ACTIVA');
 
   return (
     <>
-      <EncabezadoPagina 
-      titulo="Alertas"
-      descripcion="Eventos críticos detectados por el sistema (humedad crítica, temperatura excesiva, fallos de sensores) que requieren tu atención." />
+      <EncabezadoPagina
+        titulo="Alertas"
+        descripcion="Eventos críticos detectados por el sistema (humedad crítica, temperatura excesiva, fallos de sensores) que requieren tu atención."
+        accion={hayActivas && (
+          <button className="btn btn-secundario" onClick={marcarTodas}>
+            <CheckCheck size={16} strokeWidth={2} />
+            Marcar todas como leídas
+          </button>
+        )}
+      />
+
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {FILTROS.map((f) => (
           <button key={f.valor}
@@ -54,8 +88,16 @@ export default function Alertas() {
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                 <span className={`badge ${claseBadgeEstado(a.estado)}`}>{a.estado}</span>
-                {a.estado === 'ACTIVA' && <button className="btn btn-secundario" style={{ padding: '0.4rem 0.7rem' }} onClick={() => leida(a.id_alerta)}>Marcar leida</button>}
-                {a.estado !== 'RESUELTA' && <button className="btn btn-primario" style={{ padding: '0.4rem 0.7rem' }} onClick={() => resuelta(a.id_alerta)}>Resolver</button>}
+                {a.estado === 'ACTIVA' && (
+                  <button className="btn btn-secundario" style={{ padding: '0.4rem 0.7rem' }} onClick={() => leida(a.id_alerta)}>
+                    Marcar leida
+                  </button>
+                )}
+                {a.estado !== 'RESUELTA' && (
+                  <button className="btn btn-primario" style={{ padding: '0.4rem 0.7rem' }} onClick={() => resuelta(a.id_alerta)}>
+                    Resolver
+                  </button>
+                )}
               </div>
             </div>
           ))}

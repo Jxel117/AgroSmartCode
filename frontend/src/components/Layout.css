@@ -59,3 +59,33 @@
   .nav-item { justify-content: center; }
   .area-contenido { padding: 1rem; }
 }
+
+/* ===== Badge de notificaciones en el sidebar ===== */
+.sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--rojo);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: var(--radio-full);
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 4px rgba(193, 69, 47, 0.3);
+  animation: badge-pulso 2s ease-in-out infinite;
+}
+
+.nav-item.activo .sidebar-badge {
+  animation: none;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  box-shadow: none;
+}
+
+@keyframes badge-pulso {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
