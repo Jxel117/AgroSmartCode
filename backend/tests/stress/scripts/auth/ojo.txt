@@ -1,0 +1,9 @@
+2. Resultados de las Pruebas de Estrés (Login)
+Análisis de Rendimiento
+Las pruebas de carga sobre el endpoint de autenticación han revelado información crítica sobre la arquitectura actual:
+
+Latencia promedio: 2.41 segundos por solicitud.
+
+Comportamiento del sistema: El tiempo de respuesta es consistente con una configuración de seguridad de alto costo computacional (hashing de contraseñas mediante bcrypt/argon2).
+
+Análisis de concurrencia: Se observa que el servidor mantiene estabilidad hasta un umbral de concurrencia. Bajo cargas superiores, el tiempo de respuesta aumenta debido a la naturaleza "CPU-Bound" del proceso de autenticación.

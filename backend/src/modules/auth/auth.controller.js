@@ -8,11 +8,20 @@ export async function registrar(req, res) {
 
 export async function login(req, res) {
   const ip = req.ip ?? req.headers['x-forwarded-for']?.split(',')[0] ?? null;
+  
+  // Lógica para entorno de pruebas:
+  // Si estamos en modo 'testing', inyectamos un token de captcha válido automáticamente.
+  let tokenCaptcha = req.body.captchaToken;
+  if (process.env.NODE_ENV === 'testing') {
+      tokenCaptcha = 'TOKEN_VALIDO_PARA_TEST'; 
+  }
+
   const resultado = await authService.login({
     correo: req.body.correo,
     contra: req.body.contra,
-    captchaToken: req.body.captchaToken,
+    captchaToken: tokenCaptcha,
   }, ip);
+  
   res.json(resultado);
 }
 

@@ -1,0 +1,18 @@
+
+Este módulo es el núcleo operacional de AgroSmart, gestionando la comunicación bidireccional entre los activos físicos en campo y la plataforma de gestión.
+
+
+## 1. Ingesta de Datos (`POST /api/lecturas/ingesta`)
+
+* **Descripción:** Punto de entrada para el flujo de datos emitido por los nodos IoT.
+* **Proceso:** Recibe paquetes JSON con variables ambientales, realiza la validación de esquemas y normaliza la información para su persistencia.
+* **Valor Estratégico:** * **Integridad y Trazabilidad:** Asegura que cada dato sea legítimo.
+    * **Seguridad:** Implementa `authenticateDevice`, garantizando que únicamente nodos autorizados inyecten datos, previniendo intrusiones o lecturas erróneas.
+
+## 2. Consulta de Lecturas (`GET /api/lecturas/parcela/:parcelaId`)
+
+* **Descripción:** Endpoint dedicado a la recuperación de series temporales de datos agronómicos filtrados por parcela.
+* **Proceso:** Ejecuta consultas optimizadas sobre la base de datos relacional.
+* **Valor Estratégico:**
+    * **Inteligencia de Negocio:** Es el motor que alimenta los dashboards, permitiendo a los agricultores visualizar tendencias y promedios.
+    * **Toma de Decisiones:** Transforma datos crudos en información accionable para optimizar las estrategias de riego y el cuidado del cultivo.
