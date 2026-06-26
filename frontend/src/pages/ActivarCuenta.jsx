@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
 import { authApi } from '../api/endpoints.js';
 import MedidorPassword from '../components/MedidorPassword.jsx';
 import CampoPassword from '../components/CampoPassword.jsx';
@@ -32,8 +32,8 @@ export default function ActivarCuenta({ modo = 'recuperar' }) {
         } else {
           setErrorVerif(
             data.motivo === 'EXPIRADO' ? 'El enlace expiró. Solicita uno nuevo desde el inicio de sesión.' :
-            data.motivo === 'YA_USADO' ? 'Este enlace ya fue utilizado. Si necesitas otro, solicítalo desde "¿Olvidaste tu contraseña?".' :
-            'El enlace no es válido.'
+              data.motivo === 'YA_USADO' ? 'Este enlace ya fue utilizado. Si necesitas otro, solicítalo desde "¿Olvidaste tu contraseña?".' :
+                'El enlace no es válido.'
           );
         }
       } catch {
@@ -56,14 +56,16 @@ export default function ActivarCuenta({ modo = 'recuperar' }) {
     try {
       await authApi.completarRecuperacion(token, passwordNueva);
       setExito(true);
-      toast.success('Contraseña configurada correctamente');
+      notif.formulario.exito('Contraseña configurada correctamente');
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
         setError(detalles.map((d) => d.mensaje).join('. '));
       } else {
-        setError(err.response?.data?.error ?? 'No se pudo guardar la contraseña');
+        const mensaje = err.response?.data?.error ?? 'No se pudo guardar la contraseña';
+        setError(mensaje);
+        notif.formulario.error(mensaje);
       }
     } finally {
       setGuardando(false);

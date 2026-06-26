@@ -6,7 +6,7 @@ const COLS = `id_usuario, nombre, apellido, correo, correo_validacion, rol, esta
 export async function findByCorreo(correo) {
   const { rows } = await query(
     `SELECT id_usuario, nombre, apellido, correo, correo_validacion, contra_hash,
-            rol, estado, empresa_identificador, intentos_fallidos, bloqueado
+            rol, estado, empresa_identificador, intentos_fallidos, bloqueado, avatar_id
      FROM usuario WHERE correo = $1`,
     [correo]
   );
@@ -152,4 +152,35 @@ export async function findAgricultores(empresa = null) {
      ORDER BY apellido, nombre`
   );
   return rows;
+}
+
+// Actualizar datos del propio perfil (nombre, apellido, avatar)
+export async function actualizarPerfil(usuarioId, datos) {
+  const campos = [];
+  const valores = [];
+  let i = 1;
+
+  if (datos.nombre !== undefined) {
+    campos.push(`nombre = $${i++}`);
+    valores.push(datos.nombre);
+  }
+  if (datos.apellido !== undefined) {
+    campos.push(`apellido = $${i++}`);
+    valores.push(datos.apellido);
+  }
+  if (datos.avatar_id !== undefined) {
+    campos.push(`avatar_id = $${i++}`);
+    valores.push(datos.avatar_id || null);
+  }
+
+  if (campos.length === 0) return null;
+
+  valores.push(usuarioId);
+  const { rows } = await query(
+    `UPDATE usuario SET ${campos.join(', ')}, fecha_modificacion = now()
+     WHERE id_usuario = $${i}
+     RETURNING id_usuario, nombre, apellido, correo, rol, avatar_id, empresa_identificador`,
+    valores
+  );
+  return rows[0];
 }

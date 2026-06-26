@@ -2,41 +2,66 @@ import { useState } from 'react';
 import { usuariosApi } from '../api/endpoints.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useValidacionForm } from '../hooks/useValidacionForm.js';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import Modal from '../components/Modal.jsx';
+import Campo from '../components/Campo.jsx';
 import MedidorPassword from '../components/MedidorPassword.jsx';
 import ModalParcelasUsuario from '../components/ModalParcelasUsuario.jsx';
 import { claseBadgeEstado } from '../utils/formato.js';
 import CampoPassword from '../components/CampoPassword.jsx';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
 import { UserPlus, Pencil, Trash2, KeyRound, Power, PowerOff, MapPinned } from 'lucide-react';
+import ModalConfirmar from '../components/ModalConfirmar.jsx';
 
 const VACIO = { nombre: '', apellido: '', correoValidacion: '', contra: '', rol: 'AGRICULTOR' };
+
+// Reglas de validacion para crear/editar
+const reglasCrear = {
+  nombre: (v) => !v?.trim() ? 'El nombre es obligatorio' : v.trim().length < 2 ? 'Mínimo 2 caracteres' : null,
+  apellido: (v) => !v?.trim() ? 'El apellido es obligatorio' : v.trim().length < 2 ? 'Mínimo 2 caracteres' : null,
+  correoValidacion: (v) => {
+    if (!v?.trim()) return 'El correo Gmail es obligatorio';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Correo no válido';
+    if (!v.toLowerCase().endsWith('@gmail.com')) return 'Debe ser una cuenta @gmail.com';
+    return null;
+  },
+  contra: (v) => {
+    if (!v) return 'La contraseña es obligatoria';
+    if (v.length < 8) return 'Mínimo 8 caracteres';
+    return null;
+  },
+};
+
+const reglasEditar = {
+  nombre: reglasCrear.nombre,
+  apellido: reglasCrear.apellido,
+};
 
 export default function Usuarios() {
   const { usuario: actual } = useAuth();
   const { datos, cargando, error, recargar } = useFetch(() => usuariosApi.listar().then((r) => r.data.usuarios));
 
-  // Modal crear/editar usuario
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
-  const [errorForm, setErrorForm] = useState('');
+  const [modalEliminar, setModalEliminar] = useState({ abierto: false, usuario: null, cargando: false });
 
-  // Modal de reseteo de password
+  const { errores, validar, limpiarError, limpiarTodos, setErroresBackend } = useValidacionForm();
+
   const [modalPass, setModalPass] = useState(false);
   const [usuarioPass, setUsuarioPass] = useState(null);
   const [passNueva, setPassNueva] = useState('');
+  const valPass = useValidacionForm();
 
-  // Modal de parcelas asignadas al agricultor
   const [modalParcelas, setModalParcelas] = useState(false);
   const [usuarioParcelas, setUsuarioParcelas] = useState(null);
 
   function abrirNuevo() {
     setEditando(null);
     setForm(VACIO);
-    setErrorForm('');
+    limpiarTodos();
     setModal(true);
   }
 
@@ -49,7 +74,7 @@ export default function Usuarios() {
       contra: '',
       rol: u.rol,
     });
-    setErrorForm('');
+    limpiarTodos();
     setModal(true);
   }
 
@@ -58,36 +83,40 @@ export default function Usuarios() {
     setModalParcelas(true);
   }
 
-  function traducirCampo(campo) {
-    const traducciones = {
-      nombre: 'Nombre',
-      apellido: 'Apellido',
-      correoValidacion: 'Correo Gmail',
-      contra: 'Contraseña',
-      rol: 'Rol',
-    };
-    return traducciones[campo] ?? campo;
+  // Actualizar el form y limpiar error de ese campo
+  function setCampo(campo, valor) {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+    if (errores[campo]) limpiarError(campo);
+  }
+
+  // Mapear nombres de campos del backend a los del frontend
+  function mapearCampoBackend(detalles) {
+    const mapa = { correoValidacion: 'correoValidacion', correo_validacion: 'correoValidacion' };
+    return detalles.map((d) => ({ ...d, campo: mapa[d.campo] ?? d.campo }));
   }
 
   async function guardar(e) {
     e.preventDefault();
+    const reglas = editando ? reglasEditar : reglasCrear;
+    if (!validar(form, reglas)) return;
+
     setGuardando(true);
-    setErrorForm('');
     try {
       if (editando) {
         await usuariosApi.actualizar(editando, { nombre: form.nombre, apellido: form.apellido });
+        notif.exito('Usuario actualizado');
       } else {
         await usuariosApi.crear(form);
+        notif.exito('Usuario creado correctamente');
       }
       setModal(false);
       recargar();
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
-        const lista = detalles.map((d) => `• ${traducirCampo(d.campo)}: ${d.mensaje}`).join('\n');
-        setErrorForm(lista);
+        setErroresBackend(mapearCampoBackend(detalles));
       } else {
-        setErrorForm(err.response?.data?.error ?? 'Error al guardar');
+        notif.error(err.response?.data?.error ?? 'Error al guardar');
       }
     } finally {
       setGuardando(false);
@@ -97,50 +126,57 @@ export default function Usuarios() {
   async function cambiarEstado(u, estado) {
     try {
       await usuariosApi.cambiarEstado(u.id, estado);
-      toast.success(`Usuario ${estado === 'ACTIVA' ? 'activado' : 'suspendido'}`);
+      notif.exito(`Usuario ${estado === 'ACTIVA' ? 'activado' : 'suspendido'}`);
       recargar();
     } catch (err) {
-      toast.error(err.response?.data?.error ?? 'No se pudo cambiar el estado');
+      notif.error(err.response?.data?.error ?? 'No se pudo cambiar el estado');
     }
   }
 
-  async function eliminar(u) {
-    toast(`¿Eliminar a ${u.nombre} ${u.apellido}?`, {
-      description: 'Esta acción no se puede deshacer.',
-      action: {
-        label: 'Eliminar',
-        onClick: async () => {
-          try {
-            await usuariosApi.eliminar(u.id);
-            toast.success('Usuario eliminado');
-            recargar();
-          } catch (err) {
-            toast.error(err.response?.data?.error ?? 'No se pudo eliminar');
-          }
-        },
-      },
-    });
+  // Función eliminar:
+  function eliminar(u) {
+    setModalEliminar({ abierto: true, usuario: u, cargando: false });
+  }
+
+  async function confirmarEliminar() {
+    const u = modalEliminar.usuario;
+    if (!u) return;
+    setModalEliminar((prev) => ({ ...prev, cargando: true }));
+    try {
+      await usuariosApi.eliminar(u.id);
+      notif.exito('Usuario eliminado');
+      setModalEliminar({ abierto: false, usuario: null, cargando: false });
+      recargar();
+    } catch (err) {
+      notif.error(err.response?.data?.error ?? 'No se pudo eliminar');
+      setModalEliminar((prev) => ({ ...prev, cargando: false }));
+    }
   }
 
   function abrirResetPass(u) {
     setUsuarioPass(u);
     setPassNueva('');
+    valPass.limpiarTodos();
     setModalPass(true);
   }
 
   async function resetearPass(e) {
     e.preventDefault();
+    if (!passNueva || passNueva.length < 8) {
+      valPass.setError('passNueva', 'La contraseña debe tener mínimo 8 caracteres');
+      return;
+    }
     try {
       await usuariosApi.resetearPassword(usuarioPass.id, passNueva);
       setModalPass(false);
-      alert('Contraseña restablecida y cuenta desbloqueada');
+      notif.exito('Contraseña restablecida y cuenta desbloqueada');
       recargar();
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
-        alert(detalles.map((d) => `• ${d.mensaje}`).join('\n'));
+        valPass.setError('passNueva', detalles.map((d) => d.mensaje).join('. '));
       } else {
-        alert(err.response?.data?.error ?? 'Error');
+        notif.error(err.response?.data?.error ?? 'Error al restablecer');
       }
     }
   }
@@ -200,11 +236,11 @@ export default function Usuarios() {
                         <>
                           {u.estado === 'ACTIVA'
                             ? <button className="btn-icono" title="Suspender" onClick={() => cambiarEstado(u, 'SUSPENDIDA')}>
-                                <PowerOff size={16} strokeWidth={1.8} />
-                              </button>
+                              <PowerOff size={16} strokeWidth={1.8} />
+                            </button>
                             : <button className="btn-icono" title="Activar" onClick={() => cambiarEstado(u, 'ACTIVA')}>
-                                <Power size={16} strokeWidth={1.8} />
-                              </button>
+                              <Power size={16} strokeWidth={1.8} />
+                            </button>
                           }
                           <button className="btn-icono btn-icono-peligro" title="Eliminar" onClick={() => eliminar(u)}>
                             <Trash2 size={16} strokeWidth={1.8} />
@@ -227,75 +263,83 @@ export default function Usuarios() {
         </div>
       )}
 
+      {/* Modal crear/editar */}
       <Modal abierto={modal} onCerrar={() => setModal(false)} titulo={editando ? 'Editar usuario' : 'Nuevo usuario'}>
-        <form onSubmit={guardar}>
-          {errorForm && (
-            <div className="login-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line' }}>
-              {errorForm}
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="campo">
-              <label>Nombre</label>
-              <input value={form.nombre} required onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
-            </div>
-            <div className="campo">
-              <label>Apellido</label>
-              <input value={form.apellido} required onChange={(e) => setForm({ ...form, apellido: e.target.value })} />
-            </div>
+        <form onSubmit={guardar} noValidate>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+            <Campo label="Nombre" id="nombre" obligatorio error={errores.nombre}>
+              <input id="nombre" value={form.nombre} onChange={(e) => setCampo('nombre', e.target.value)} />
+            </Campo>
+            <Campo label="Apellido" id="apellido" obligatorio error={errores.apellido}>
+              <input id="apellido" value={form.apellido} onChange={(e) => setCampo('apellido', e.target.value)} />
+            </Campo>
           </div>
+
           {!editando && (
             <>
-              <div className="campo">
-                <label>Correo Gmail (validación)</label>
+              <Campo
+                label="Correo Gmail (validación)"
+                id="correoVal"
+                obligatorio
+                error={errores.correoValidacion}
+                ayuda="El correo de acceso @agrosmart.ec se generará automáticamente."
+              >
                 <input
+                  id="correoVal"
                   type="email"
                   value={form.correoValidacion}
-                  required
-                  onChange={(e) => setForm({ ...form, correoValidacion: e.target.value })}
+                  onChange={(e) => setCampo('correoValidacion', e.target.value)}
                   placeholder="usuario@gmail.com"
                 />
-                <span style={{ fontSize: '0.76rem', color: 'var(--gris-500)' }}>
-                  El correo de acceso @agrosmart.ec se generará automáticamente.
-                </span>
-              </div>
-             <CampoPassword
-                id="contraNuevo"
-                label="Contraseña"
-                value={form.contra}
-                onChange={(e) => setForm({ ...form, contra: e.target.value })}
-                placeholder="Contraseña segura"
-              />
+              </Campo>
+
+              <Campo label="Contraseña" id="contraNuevo" obligatorio error={errores.contra}>
+                <CampoPassword
+                  id="contraNuevo"
+                  value={form.contra}
+                  onChange={(e) => setCampo('contra', e.target.value)}
+                  placeholder="Contraseña segura"
+                  sinLabel
+                />
+              </Campo>
               <MedidorPassword password={form.contra} />
-              <div className="campo">
-                <label>Rol</label>
-                <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
+
+              <Campo label="Rol" id="rol">
+                <select id="rol" value={form.rol} onChange={(e) => setCampo('rol', e.target.value)}>
                   <option value="AGRICULTOR">AGRICULTOR</option>
                   <option value="ADMINISTRADOR">ADMINISTRADOR</option>
                 </select>
-              </div>
+              </Campo>
             </>
           )}
+
           {editando && (
             <p style={{ fontSize: '0.82rem', color: 'var(--gris-500)', marginBottom: '1rem' }}>
               El rol no se puede modificar después de crear la cuenta. Para cambiar la contraseña usa "Resetear clave".
             </p>
           )}
+
           <button className="btn btn-primario" type="submit" disabled={guardando} style={{ width: '100%', marginTop: '0.5rem' }}>
             {guardando ? 'Guardando...' : 'Guardar'}
           </button>
         </form>
       </Modal>
 
+      {/* Modal resetear password */}
       <Modal abierto={modalPass} onCerrar={() => setModalPass(false)} titulo={`Resetear contraseña de ${usuarioPass?.nombre ?? ''}`}>
-        <form onSubmit={resetearPass}>
-          <CampoPassword
-            id="resetPass"
-            label="Nueva contraseña"
-            value={passNueva}
-            onChange={(e) => setPassNueva(e.target.value)}
-            placeholder="Nueva contraseña segura"
-          />
+        <form onSubmit={resetearPass} noValidate>
+          <Campo label="Nueva contraseña" id="resetPass" obligatorio error={valPass.errores.passNueva}>
+            <CampoPassword
+              id="resetPass"
+              value={passNueva}
+              onChange={(e) => {
+                setPassNueva(e.target.value);
+                if (valPass.errores.passNueva) valPass.limpiarError('passNueva');
+              }}
+              placeholder="Nueva contraseña segura"
+              sinLabel
+            />
+          </Campo>
           <MedidorPassword password={passNueva} />
           <p style={{ fontSize: '0.8rem', color: 'var(--gris-500)', marginBottom: '1rem' }}>
             Al restablecer la contraseña, si la cuenta estaba bloqueada se desbloqueará automáticamente.
@@ -308,6 +352,14 @@ export default function Usuarios() {
         usuario={usuarioParcelas}
         abierto={modalParcelas}
         onCerrar={() => setModalParcelas(false)}
+      />
+      <ModalConfirmar
+        abierto={modalEliminar.abierto}
+        onCerrar={() => setModalEliminar({ abierto: false, usuario: null, cargando: false })}
+        onConfirmar={confirmarEliminar}
+        titulo={`¿Eliminar a ${modalEliminar.usuario?.nombre ?? ''} ${modalEliminar.usuario?.apellido ?? ''}?`}
+        descripcion="Esta acción no se puede deshacer."
+        cargando={modalEliminar.cargando}
       />
     </>
   );

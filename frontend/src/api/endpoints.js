@@ -67,6 +67,7 @@ export const usuariosApi = {
   parcelas: (id) => api.get(`/usuarios/${id}/parcelas`),
   asignarParcela: (id, parcelaId) => api.post(`/usuarios/${id}/parcelas`, { parcelaId }),
   desasignarParcela: (id, parcelaId) => api.delete(`/usuarios/${id}/parcelas`, { data: { parcelaId } }),
+   actualizarPerfilPropio: (datos) => api.patch('/usuarios/me', datos),
 };
 
 export const authApi = {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
 import { CheckCheck } from 'lucide-react';
 import { alertasApi } from '../api/endpoints.js';
 import { useFetch } from '../hooks/useFetch.js';

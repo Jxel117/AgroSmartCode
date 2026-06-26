@@ -10,6 +10,7 @@ import EstadoVacio from '../components/EstadoVacio.jsx';
 import { SkeletonFilaTabla } from '../components/Skeleton.jsx';
 import { fechaHora, claseBadgeEstado } from '../utils/formato.js';
 import { riegoApi } from '../api/endpoints.js';
+import ModalConfirmar from '../components/ModalConfirmar.jsx';
 
 const FORM_VACIO = {
   parcelaId: '',
@@ -29,6 +30,7 @@ export default function Nodos() {
   const [form, setForm] = useState(FORM_VACIO);
   const [credenciales, setCredenciales] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [modalEliminar, setModalEliminar] = useState({ abierto: false, nodo: null, cargando: false });
 
   function abrirNuevo() {
     setEditando(null);
@@ -97,21 +99,22 @@ export default function Nodos() {
   }
 
   function eliminar(n) {
-    toast('¿Eliminar este dispositivo?', {
-      description: 'Se borrará permanentemente. Esta acción no se puede deshacer.',
-      action: {
-        label: 'Eliminar',
-        onClick: async () => {
-          try {
-            await nodosApi.eliminar(n.id_nodo);
-            toast.success('Dispositivo eliminado');
-            recargar();
-          } catch (err) {
-            toast.error(err.response?.data?.error ?? 'No se pudo eliminar');
-          }
-        },
-      },
-    });
+    setModalEliminar({ abierto: true, nodo: n, cargando: false });
+  }
+
+  async function confirmarEliminar() {
+    const n = modalEliminar.nodo;
+    if (!n) return;
+    setModalEliminar((prev) => ({ ...prev, cargando: true }));
+    try {
+      await nodosApi.eliminar(n.id_nodo);
+      toast.success('Dispositivo eliminado');
+      setModalEliminar({ abierto: false, nodo: null, cargando: false });
+      recargar();
+    } catch (err) {
+      toast.error(err.response?.data?.error ?? 'No se pudo eliminar');
+      setModalEliminar((prev) => ({ ...prev, cargando: false }));
+    }
   }
 
   // Mapea id de parcela a su nombre descriptivo
@@ -337,6 +340,14 @@ export default function Nodos() {
           </form>
         )}
       </Modal>
+      <ModalConfirmar
+        abierto={modalEliminar.abierto}
+        onCerrar={() => setModalEliminar({ abierto: false, nodo: null, cargando: false })}
+        onConfirmar={confirmarEliminar}
+        titulo={`¿Eliminar dispositivo ${modalEliminar.nodo?.identificador ?? ''}?`}
+        descripcion="Esta acción no se puede deshacer."
+        cargando={modalEliminar.cargando}
+      />
     </>
   );
 }

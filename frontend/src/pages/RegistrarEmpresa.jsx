@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
 import { authApi } from '../api/endpoints.js';
 import FondoCarrusel from '../components/FondoCarrusel.jsx';
 import './Login.css';
+import { notif } from '../utils/notif.js';
 
 export default function RegistrarEmpresa() {
   const [form, setForm] = useState({
@@ -30,13 +30,15 @@ export default function RegistrarEmpresa() {
     try {
       const { data } = await authApi.registrarEmpresa(form);
       setExito(data);
-      toast.success('Revisa tu correo para activar tu cuenta.');
+      notif.formulario.exito('Empresa registrada correctamente. Revisa tu correo.');
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
         setError(detalles.map((d) => `• ${traducirCampo(d.campo)}: ${d.mensaje}`).join('\n'));
       } else {
-        setError(err.response?.data?.error ?? 'No se pudo registrar');
+        const mensaje = err.response?.data?.error ?? 'No se pudo registrar';
+        setError(mensaje);
+        notif.formulario.error(mensaje);
       }
     } finally {
       setEnviando(false);

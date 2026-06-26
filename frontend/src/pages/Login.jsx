@@ -1,10 +1,22 @@
 import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useValidacionForm } from '../hooks/useValidacionForm.js';
+import { notif } from '../utils/notif.js';
 import ReCAPTCHA from 'react-google-recaptcha';
+import Campo from '../components/Campo.jsx';
 import CampoPassword from '../components/CampoPassword.jsx';
 import FondoCarrusel from '../components/FondoCarrusel.jsx';
 import './Login.css';
+
+const reglas = {
+  correo: (v) => {
+    if (!v?.trim()) return 'El correo es obligatorio';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Correo no válido';
+    return null;
+  },
+  contra: (v) => !v ? 'La contraseña es obligatoria' : null,
+};
 
 export default function Login() {
   const { login } = useAuth();
@@ -12,18 +24,30 @@ export default function Login() {
   const [correo, setCorreo] = useState('');
   const [contra, setContra] = useState('');
   const [captchaToken, setCaptchaToken] = useState(null);
-  const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
   const captchaRef = useRef(null);
 
+  const { errores, validar, limpiarError } = useValidacionForm();
+
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+  function setCorreoValue(v) {
+    setCorreo(v);
+    if (errores.correo) limpiarError('correo');
+  }
+
+  function setContraValue(v) {
+    setContra(v);
+    if (errores.contra) limpiarError('contra');
+  }
 
   async function manejarSubmit(e) {
     e.preventDefault();
-    setError('');
+
+    if (!validar({ correo, contra }, reglas)) return;
 
     if (!captchaToken) {
-      setError('Por favor completa la verificación de seguridad');
+      notif.formulario.alerta('Por favor completa la verificación de seguridad');
       return;
     }
 
@@ -32,7 +56,8 @@ export default function Login() {
       await login(correo, contra, captchaToken);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error ?? 'No se pudo iniciar sesion');
+      const mensaje = err.response?.data?.error ?? 'No se pudo iniciar sesión';
+      notif.formulario.error(mensaje);
       captchaRef.current?.reset();
       setCaptchaToken(null);
     } finally {
@@ -51,21 +76,25 @@ export default function Login() {
           <p className="login-marca-subtitulo">Riego inteligente basado en IoT</p>
         </div>
 
-        <form onSubmit={manejarSubmit}>
-          {error && <div className="login-error">{error}</div>}
+        <form onSubmit={manejarSubmit} noValidate>
+          <Campo label="Correo" id="correo" error={errores.correo}>
+            <input
+              id="correo"
+              type="email"
+              value={correo}
+              onChange={(e) => setCorreoValue(e.target.value)}
+              placeholder="tu@correo.com"
+            />
+          </Campo>
 
-          <div className="campo">
-            <label htmlFor="correo">Correo</label>
-            <input id="correo" type="email" value={correo} required
-              onChange={(e) => setCorreo(e.target.value)} placeholder="tu@correo.com" />
-          </div>
-
-          <CampoPassword
-            id="contra"
-            label="Contraseña"
-            value={contra}
-            onChange={(e) => setContra(e.target.value)}
-          />
+          <Campo label="Contraseña" id="contra" error={errores.contra}>
+            <CampoPassword
+              id="contra"
+              value={contra}
+              onChange={(e) => setContraValue(e.target.value)}
+              sinLabel
+            />
+          </Campo>
 
           <div className="login-captcha">
             <ReCAPTCHA

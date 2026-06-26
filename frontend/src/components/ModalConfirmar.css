@@ -1,0 +1,74 @@
+/* ============================================
+   MODAL CONFIRMAR: confirmacion de acciones destructivas
+   ============================================ */
+
+.modal-confirmar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 0 0;
+}
+
+.modal-confirmar-icono {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.modal-confirmar-peligro .modal-confirmar-icono {
+  background: #fdecea;
+  color: var(--rojo, #c1452f);
+}
+
+.modal-confirmar-alerta .modal-confirmar-icono {
+  background: #fef4e0;
+  color: #b87800;
+}
+
+.modal-confirmar-descripcion {
+  font-size: 0.85rem;
+  color: var(--gris-700, #41463f);
+  line-height: 1.45;
+  margin-bottom: 1.1rem;
+  max-width: 320px;
+}
+
+.modal-confirmar-acciones {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.modal-confirmar-acciones .btn {
+  min-width: 110px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.modal-caja:has(.modal-confirmar) {
+  max-width: 380px;
+}
+.modal-caja:has(.modal-confirmar) .modal-cuerpo {
+  padding: 0.4rem 1.2rem 1.2rem;
+}
+.modal-caja:has(.modal-confirmar) .modal-cabecera {
+  padding: 0.85rem 1.2rem;
+}
+
+@media (max-width: 480px) {
+  .modal-confirmar-acciones {
+    flex-direction: column-reverse;
+  }
+  .modal-confirmar-acciones .btn {
+    width: 100%;
+  }
+}

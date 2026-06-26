@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
 import { SlidersHorizontal, Wand2, History, Settings } from 'lucide-react';
 import { riegoApi, perfilesApi } from '../api/endpoints.js';
 import Modal from './Modal.jsx';
@@ -35,7 +35,7 @@ export default function ModalConfiguracionRiego({ abierto, onCerrar, parcela }) 
       setHistorial(histRes.data.historial ?? []);
       setPerfiles(perfRes.data.perfiles ?? []);
     } catch (err) {
-      toast.error('No se pudo cargar la configuración');
+      notif.error('No se pudo cargar la configuración');
     } finally {
       setCargando(false);
     }
@@ -44,18 +44,18 @@ export default function ModalConfiguracionRiego({ abierto, onCerrar, parcela }) 
   async function aplicarPerfil(e) {
     e.preventDefault();
     if (!perfilSeleccionado) {
-      toast.error('Selecciona un perfil agronómico');
+      notif.error('Selecciona un perfil agronómico');
       return;
     }
     setGuardando(true);
     try {
       await riegoApi.aplicarPerfil(parcela.id_parcela, perfilSeleccionado);
-      toast.success('Perfil aplicado correctamente');
+      notif.exito('Perfil aplicado correctamente');
       setPerfilSeleccionado('');
       setSeccion('actual');
       await recargarTodo();
     } catch (err) {
-      toast.error(err.response?.data?.error ?? 'No se pudo aplicar el perfil');
+      notif.error(err.response?.data?.error ?? 'No se pudo aplicar el perfil');
     } finally {
       setGuardando(false);
     }
@@ -74,12 +74,12 @@ export default function ModalConfiguracionRiego({ abierto, onCerrar, parcela }) 
         nIntentosFallidosMax: parseInt(formManual.nIntentosFallidosMax, 10),
       };
       await riegoApi.aplicarManual(parcela.id_parcela, payload);
-      toast.success('Configuración manual aplicada');
+      notif.exito('Configuración manual aplicada');
       setFormManual({ umin: '', umax: '', uminCritico: '', tMaximo: '', tmin: '', nIntentosFallidosMax: 3 });
       setSeccion('actual');
       await recargarTodo();
     } catch (err) {
-      toast.error(err.response?.data?.error ?? 'No se pudo aplicar la configuración');
+      notif.error(err.response?.data?.error ?? 'No se pudo aplicar la configuración');
     } finally {
       setGuardando(false);
     }
@@ -102,10 +102,10 @@ export default function ModalConfiguracionRiego({ abierto, onCerrar, parcela }) 
           Actual
         </BotonPestania>
         <BotonPestania activa={seccion === 'perfil'} onClick={() => setSeccion('perfil')} icono={Wand2}>
-          Aplicar perfil
+          Parámetros existentes
         </BotonPestania>
         <BotonPestania activa={seccion === 'manual'} onClick={() => setSeccion('manual')} icono={SlidersHorizontal}>
-          Manual
+          Parámetros manuales
         </BotonPestania>
         <BotonPestania activa={seccion === 'historial'} onClick={() => setSeccion('historial')} icono={History}>
           Historial
@@ -227,7 +227,7 @@ function SeccionPerfil({ perfiles, perfilSeleccionado, setPerfilSeleccionado, pa
         <div style={{ background: 'var(--verde-50)', border: '1px solid var(--verde-300)', padding: '0.75rem 1rem', borderRadius: 'var(--radio-sm)', marginBottom: '1rem', fontSize: '0.85rem' }}>
           <strong style={{ color: 'var(--verde-700)' }}>Sugerencia:</strong> esta parcela es{' '}
           <strong>{parcela.tipo_cultivo}</strong> en suelo <strong>{parcela.tipo_suelo}</strong>.
-          Existe un perfil que coincide.
+          Ya existe un parámetro configurado.
           <button
             type="button"
             onClick={() => setPerfilSeleccionado(sugerido.id_perfil)}
@@ -251,7 +251,7 @@ function SeccionPerfil({ perfiles, perfilSeleccionado, setPerfilSeleccionado, pa
       </div>
 
       <button className="btn btn-primario" type="submit" disabled={guardando || !perfilSeleccionado} style={{ width: '100%' }}>
-        {guardando ? 'Aplicando...' : 'Aplicar perfil'}
+        {guardando ? 'Aplicando...' : 'Aplicar parametros seleccionado'}
       </button>
     </form>
   );

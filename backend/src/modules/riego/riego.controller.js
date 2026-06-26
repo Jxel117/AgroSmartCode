@@ -7,12 +7,12 @@ export async function obtenerConfig(req, res) {
 }
 
 export async function aplicarManual(req, res) {
-  const cfg = await configService.aplicarManual(req.params.parcelaId, req.body);
+  const cfg = await configService.aplicarManual(req.params.parcelaId, req.body, req.user);
   res.status(201).json({ configuracion: cfg });
 }
 
 export async function aplicarPerfil(req, res) {
-  const cfg = await configService.aplicarPerfil(req.params.parcelaId, req.body.perfilId);
+  const cfg = await configService.aplicarPerfil(req.params.parcelaId, req.body.perfilId, req.user);
   res.status(201).json({ configuracion: cfg });
 }
 

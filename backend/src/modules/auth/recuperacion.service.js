@@ -4,6 +4,7 @@ import { hashPassword } from '../../utils/password.js';
 import { enviarEmail, plantillaEmail } from '../../services/email.service.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../utils/AppError.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 /**
  * Solicitar recuperacion: el usuario indica su correo de validacion (Gmail).
@@ -41,6 +42,12 @@ export async function solicitarRecuperacion(correoValidacion) {
     texto: `Para restablecer tu contraseña, abre este enlace: ${enlace} (válido por 1 hora)`,
   });
 
+  emitir({
+    categoria: 'AUTENTICACION', accion: 'RECUPERACION_SOLICITADA',
+    actor: { usuario_id: usuario.id_usuario, correo: usuario.correo, empresa_id: usuario.empresa_identificador },
+    recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario },
+  });
+
   return { enviado: true };
 }
 
@@ -71,6 +78,12 @@ export async function completarRecuperacion(tokenPlano, passwordNueva) {
 
   // Marcar el token como usado para que no sirva otra vez
   await tokenRepo.marcarUsado(usuario.id_token);
+
+  emitir({
+    categoria: 'AUTENTICACION', accion: 'RECUPERACION_COMPLETADA',
+    actor: { usuario_id: usuario.id_usuario, correo: usuario.correo },
+    recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario },
+  });
 
   return {
     correo: usuario.correo,

@@ -14,15 +14,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Refuerzo: al cerrar/recargar la pestaña, la sesión no persiste.
-  // sessionStorage ya lo hace, esto es un seguro adicional.
   useEffect(() => {
     function alCerrar() {
-      // No borramos aquí porque sessionStorage ya se limpia solo al cerrar pestaña.
-      // Este hook queda como punto de extensión si se quisiera notificar al backend.
+      // sessionStorage se limpia solo al cerrar pestana.
     }
-
     window.addEventListener('beforeunload', alCerrar);
-
     return () => window.removeEventListener('beforeunload', alCerrar);
   }, []);
 
@@ -40,16 +36,36 @@ export function AuthProvider({ children }) {
     } catch {
       /* ignorar */
     }
-
     sessionStorage.removeItem('agrosmart_token');
     sessionStorage.removeItem('agrosmart_usuario');
     setUsuario(null);
   }
 
+  /**
+   * Actualiza datos del usuario en memoria y en sessionStorage.
+   * Usado por la pagina de Perfil tras cambiar datos.
+   */
+  function actualizarUsuario(parcial) {
+    setUsuario((prev) => {
+      if (!prev) return prev;
+      const actualizado = { ...prev, ...parcial };
+      sessionStorage.setItem('agrosmart_usuario', JSON.stringify(actualizado));
+      return actualizado;
+    });
+  }
+
   const esAdmin = usuario?.rol === 'ADMINISTRADOR';
 
   return (
-    <AuthContext.Provider value={{ usuario, cargando, login, logout, esAdmin }}>
+    <AuthContext.Provider value={{
+      usuario,
+      cargando,
+      login,
+      logout,
+      esAdmin,
+      setUsuario,
+      actualizarUsuario,
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -57,10 +73,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-
   if (!ctx) {
     throw new Error('useAuth debe usarse dentro de AuthProvider');
   }
-
   return ctx;
 }
