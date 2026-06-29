@@ -1,7 +1,0 @@
-node_modules/
-.env
-*.log
-dist/
-mqtt/certs/
-mqtt/config/passwd
-mqtt/config/mosquitto.db
