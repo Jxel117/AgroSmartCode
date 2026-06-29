@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
 import { authApi } from '../api/endpoints.js';
 import FondoCarrusel from '../components/FondoCarrusel.jsx';
 import './Login.css';
@@ -18,13 +18,15 @@ export default function OlvidarPassword() {
     try {
       await authApi.solicitarRecuperacion(correo);
       setEnviado(true);
-      toast.success('Solicitud recibida. Revisa tu correo.');
+      notif.formulario.exito('Solicitud recibida. Revisa tu correo.');
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
         setError(detalles.map((d) => d.mensaje).join('. '));
       } else {
-        setError(err.response?.data?.error ?? 'No se pudo procesar la solicitud');
+        const mensaje = err.response?.data?.error ?? 'No se pudo procesar la solicitud';
+        setError(mensaje);
+        notif.formulario.error(mensaje);
       }
     } finally {
       setEnviando(false);

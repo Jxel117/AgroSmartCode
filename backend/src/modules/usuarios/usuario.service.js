@@ -17,13 +17,14 @@ function toPublic(u) {
     id: u.id_usuario,
     nombre: u.nombre,
     apellido: u.apellido,
-    correo: u.correo,                       // institucional @agrosmart.ec (acceso)
-    correoValidacion: u.correo_validacion,  // Gmail (validacion)
+    correo: u.correo,
+    correoValidacion: u.correo_validacion,
     rol: u.rol,
     estado: u.estado,
     empresaIdentificador: u.empresa_identificador,
     bloqueado: u.bloqueado,
     fechaCreacion: u.fecha_creacion,
+    avatar_id: u.avatar_id ?? null,
   };
 }
 

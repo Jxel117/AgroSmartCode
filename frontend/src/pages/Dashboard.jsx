@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
@@ -86,10 +86,8 @@ export default function Dashboard() {
   // Transicion AFD: si es de la parcela actual, refrescar y mostrar toast
   const onTransicionAfd = useCallback((transicion) => {
     if (transicion.parcela_id !== parcelaId) return;
-
     // Actualizar el estado del AFD mostrado
     setAfd((prev) => prev ? { ...prev, estado_actual: transicion.estadoDestino, fecha_ultimo_cambio_estado: transicion.timestamp } : prev);
-
     // Insertar la transicion al inicio de la tabla
     setTransiciones((prev) => [{
       id_transicion: `live-${Date.now()}`,
@@ -103,11 +101,11 @@ export default function Dashboard() {
     const origen = etiquetaEstadoAfd(transicion.estadoOrigen);
     const destino = etiquetaEstadoAfd(transicion.estadoDestino);
     if (transicion.accionActuador === 'ENCENDER') {
-      toast.success(`Riego activado: ${origen} → ${destino}`);
+      notif.exito(`Riego activado: ${origen} → ${destino}`);
     } else if (transicion.accionActuador === 'APAGAR') {
-      toast.info(`Riego detenido: ${origen} → ${destino}`);
+      notif.info(`Riego detenido: ${origen} → ${destino}`);
     } else {
-      toast(`${origen} → ${destino}`, { description: transicion.causa });
+      notif.info(`${origen} → ${destino}`, { description: transicion.causa });
     }
   }, [parcelaId]);
 
@@ -128,7 +126,7 @@ export default function Dashboard() {
   if (parcelas.length === 0 && !cargando) {
     return (
       <>
-        <EncabezadoPagina titulo="Dashboard" />
+        <EncabezadoPagina titulo="Inicio" />
 
         {usuario?.empresaIdentificador && (
           <div style={{ background: 'var(--verde-50)', color: 'var(--verde-700)', padding: '0.6rem 1rem', borderRadius: 'var(--radio-sm)', marginBottom: '1.2rem', fontSize: '0.88rem', fontWeight: 500 }}>
@@ -146,7 +144,7 @@ export default function Dashboard() {
   return (
     <>
       <EncabezadoPagina
-        titulo="Dashboard"
+        titulo="Inicio"
         descripcion="Monitoreo en tiempo real del riego automatizado en tus terrenos. Aquí ves humedad, temperatura, estado del riego y eventos recientes."
         accion={
           <select className="dash-selector" value={parcelaId} onChange={(e) => setParcelaId(e.target.value)}>

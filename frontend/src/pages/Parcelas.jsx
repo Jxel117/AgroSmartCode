@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { parcelasApi } from '../api/endpoints.js';
 import { useFetch } from '../hooks/useFetch.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useValidacionForm } from '../hooks/useValidacionForm.js';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import Modal from '../components/Modal.jsx';
+import Campo from '../components/Campo.jsx';
 import { claseBadgeEstado } from '../utils/formato.js';
 import ModalAgricultores from '../components/ModalAgricultores.jsx';
-import { Plus, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
-import { SlidersHorizontal } from 'lucide-react';
 import ModalConfiguracionRiego from '../components/ModalConfiguracionRiego.jsx';
-import { toast } from 'sonner';
+import { notif } from '../utils/notif.js';
+import { Plus, Pencil, Trash2, Users as UsersIcon, SlidersHorizontal } from 'lucide-react';
+import ModalConfirmar from '../components/ModalConfirmar.jsx';
 
 const SUELOS = ['HUMIFERO', 'ARENOSO', 'ARCILLOSO'];
 const CULTIVOS = ['HORTALIZAS', 'FRUTOS_ROJOS'];
@@ -22,6 +24,11 @@ const VACIO = {
   estado: 'ACTIVA',
 };
 
+const reglas = {
+  nombreDescriptivo: (v) => !v?.trim() ? 'El nombre es obligatorio'
+    : v.trim().length < 2 ? 'Mínimo 2 caracteres' : null,
+};
+
 export default function Parcelas() {
   const { esAdmin } = useAuth();
   const { datos, cargando, error, recargar } = useFetch(() => parcelasApi.listar().then((r) => r.data.parcelas));
@@ -29,7 +36,10 @@ export default function Parcelas() {
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
-  const [errorForm, setErrorForm] = useState('');
+  const [modalEliminar, setModalEliminar] = useState({ abierto: false, parcela: null, cargando: false });
+
+  const { errores, validar, limpiarError, limpiarTodos, setErroresBackend } = useValidacionForm();
+
   const [modalAgric, setModalAgric] = useState(false);
   const [parcelaAgric, setParcelaAgric] = useState(null);
   const [modalConfig, setModalConfig] = useState(false);
@@ -37,7 +47,6 @@ export default function Parcelas() {
 
   function abrirNuevo() {
     setEditando(null);
-    // Sugerir nombre automatico tipo "Terreno N"
     const numeros = (datos ?? [])
       .map((p) => {
         const match = /^Terreno (\d+)$/.exec(p.nombre_descriptivo);
@@ -45,11 +54,8 @@ export default function Parcelas() {
       })
       .filter((n) => n > 0);
     const siguiente = numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-    setForm({
-      ...VACIO,
-      nombreDescriptivo: `Terreno ${siguiente}`,
-    });
-    setErrorForm('');
+    setForm({ ...VACIO, nombreDescriptivo: `Terreno ${siguiente}` });
+    limpiarTodos();
     setModal(true);
   }
 
@@ -67,7 +73,7 @@ export default function Parcelas() {
       ubicacionDescriptiva: p.ubicacion_descriptiva ?? '',
       estado: p.estado,
     });
-    setErrorForm('');
+    limpiarTodos();
     setModal(true);
   }
 
@@ -76,59 +82,57 @@ export default function Parcelas() {
     setModalAgric(true);
   }
 
-  function traducirCampo(campo) {
-    const traducciones = {
-      nombreDescriptivo: 'Nombre',
-      tipoSuelo: 'Tipo de suelo',
-      tipoCultivo: 'Tipo de cultivo',
-      ubicacionDescriptiva: 'Ubicación',
-      estado: 'Estado',
-    };
-    return traducciones[campo] ?? campo;
+  function setCampo(campo, valor) {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+    if (errores[campo]) limpiarError(campo);
   }
 
   async function guardar(e) {
     e.preventDefault();
+    if (!validar(form, reglas)) return;
+
     setGuardando(true);
-    setErrorForm('');
     try {
       if (editando) {
         await parcelasApi.actualizar(editando, form);
+        notif.exito('Terreno actualizado correctamente');
       } else {
         await parcelasApi.crear(form);
+        notif.exito('Terreno creado correctamente');
       }
       setModal(false);
       recargar();
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
-        const lista = detalles.map((d) => `• ${traducirCampo(d.campo)}: ${d.mensaje}`).join('\n');
-        setErrorForm(lista);
+        setErroresBackend(detalles);
+        notif.formulario.error('Revisa los campos marcados');
       } else {
-        setErrorForm(err.response?.data?.error ?? 'Error al guardar');
+        notif.error(err.response?.data?.error ?? 'No se pudo guardar el terreno');
       }
     } finally {
       setGuardando(false);
     }
   }
 
-  async function eliminar(id) {
-  toast('¿Eliminar este terreno?', {
-    description: 'Se borrarán sus dispositivos y lecturas. Esta acción no se puede deshacer.',
-    action: {
-      label: 'Eliminar',
-      onClick: async () => {
-        try {
-          await parcelasApi.eliminar(id);
-          toast.success('Terreno eliminado');
-          recargar();
-        } catch (err) {
-          toast.error(err.response?.data?.error ?? 'No se pudo eliminar');
-        }
-      },
-    },
-  });
-}
+  function eliminar(p) {
+    setModalEliminar({ abierto: true, parcela: p, cargando: false });
+  }
+
+  async function confirmarEliminar() {
+    const p = modalEliminar.parcela;
+    if (!p) return;
+    setModalEliminar((prev) => ({ ...prev, cargando: true }));
+    try {
+      await parcelasApi.eliminar(p.id_parcela);
+      notif.exito('Terreno eliminado');
+      setModalEliminar({ abierto: false, parcela: null, cargando: false });
+      recargar();
+    } catch (err) {
+      notif.error(err.response?.data?.error ?? 'No se pudo eliminar el terreno');
+      setModalEliminar((prev) => ({ ...prev, cargando: false }));
+    }
+  }
 
   return (
     <>
@@ -176,7 +180,7 @@ export default function Parcelas() {
                         <button className="btn-icono" title="Ver agricultores asignados" onClick={() => abrirAgricultores(p)}>
                           <UsersIcon size={16} strokeWidth={1.8} />
                         </button>
-                        <button className="btn-icono btn-icono-peligro" title="Eliminar" onClick={() => eliminar(p.id_parcela)}>
+                        <button className="btn-icono btn-icono-peligro" title="Eliminar" onClick={() => eliminar(p)}>
                           <Trash2 size={16} strokeWidth={1.8} />
                         </button>
                       </td>
@@ -197,53 +201,67 @@ export default function Parcelas() {
       )}
 
       <Modal abierto={modal} onCerrar={() => setModal(false)} titulo={editando ? 'Editar terreno' : 'Nuevo terreno'}>
-        <form onSubmit={guardar}>
-          {errorForm && (
-            <div className="login-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line' }}>
-              {errorForm}
-            </div>
-          )}
-          <div className="campo">
-            <label>Nombre descriptivo</label>
-            <input value={form.nombreDescriptivo} required onChange={(e) => setForm({ ...form, nombreDescriptivo: e.target.value })} />
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              Nombre amigable para identificar el terreno. Se sugiere uno automático, pero puedes cambiarlo.
-            </span>
-          </div>
-          <div className="campo">
-            <label>Tipo de suelo</label>
-            <select value={form.tipoSuelo} onChange={(e) => setForm({ ...form, tipoSuelo: e.target.value })}>
+        <form onSubmit={guardar} noValidate>
+          <Campo
+            label="Nombre descriptivo"
+            id="nombreDescriptivo"
+            obligatorio
+            error={errores.nombreDescriptivo}
+            ayuda="Nombre amigable para identificar el terreno. Se sugiere uno automático, pero puedes cambiarlo."
+          >
+            <input
+              id="nombreDescriptivo"
+              value={form.nombreDescriptivo}
+              onChange={(e) => setCampo('nombreDescriptivo', e.target.value)}
+            />
+          </Campo>
+
+          <Campo label="Tipo de suelo" id="tipoSuelo" ayuda="Tipo de tierra del terreno; afecta a la retención de agua.">
+            <select
+              id="tipoSuelo"
+              value={form.tipoSuelo}
+              onChange={(e) => setCampo('tipoSuelo', e.target.value)}
+            >
               {SUELOS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              Tipo de tierra del terreno; afecta a la retención de agua.
-            </span>
-          </div>
-          <div className="campo">
-            <label>Tipo de cultivo</label>
-            <select value={form.tipoCultivo} onChange={(e) => setForm({ ...form, tipoCultivo: e.target.value })}>
+          </Campo>
+
+          <Campo label="Tipo de cultivo" id="tipoCultivo" ayuda="Cultivo principal sembrado en este terreno.">
+            <select
+              id="tipoCultivo"
+              value={form.tipoCultivo}
+              onChange={(e) => setCampo('tipoCultivo', e.target.value)}
+            >
               {CULTIVOS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              Cultivo principal sembrado en este terreno.
-            </span>
-          </div>
-          <div className="campo">
-            <label>Ubicación</label>
-            <input value={form.ubicacionDescriptiva} onChange={(e) => setForm({ ...form, ubicacionDescriptiva: e.target.value })} placeholder="Ej: Sector Norte, parte alta del lote" />
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              Descripción textual de dónde se encuentra el terreno.
-            </span>
-          </div>
+          </Campo>
+
+          <Campo
+            label="Ubicación"
+            id="ubicacionDescriptiva"
+            ayuda="Descripción textual de dónde se encuentra el terreno."
+          >
+            <input
+              id="ubicacionDescriptiva"
+              value={form.ubicacionDescriptiva}
+              onChange={(e) => setCampo('ubicacionDescriptiva', e.target.value)}
+              placeholder="Ej: Sector Norte, parte alta del lote"
+            />
+          </Campo>
+
           {editando && (
-            <div className="campo">
-              <label>Estado</label>
-              <select value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })}>
+            <Campo label="Estado" id="estado">
+              <select
+                id="estado"
+                value={form.estado}
+                onChange={(e) => setCampo('estado', e.target.value)}
+              >
                 <option value="ACTIVA">ACTIVA</option>
                 <option value="INACTIVA">INACTIVA</option>
               </select>
-            </div>
+            </Campo>
           )}
+
           <button className="btn btn-primario" type="submit" disabled={guardando} style={{ width: '100%', marginTop: '0.5rem' }}>
             {guardando ? 'Guardando...' : (editando ? 'Actualizar terreno' : 'Crear terreno')}
           </button>
@@ -260,6 +278,14 @@ export default function Parcelas() {
         abierto={modalConfig}
         onCerrar={() => setModalConfig(false)}
         parcela={parcelaConfig}
+      />
+      <ModalConfirmar
+        abierto={modalEliminar.abierto}
+        onCerrar={() => setModalEliminar({ abierto: false, parcela: null, cargando: false })}
+        onConfirmar={confirmarEliminar}
+        titulo={`¿Eliminar "${modalEliminar.parcela?.nombre_descriptivo ?? ''}"?`}
+        descripcion="Se borrarán sus dispositivos y lecturas. Esta acción no se puede deshacer."
+        cargando={modalEliminar.cargando}
       />
     </>
   );

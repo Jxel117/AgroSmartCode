@@ -1,4 +1,5 @@
 import * as repo from './reporte.repository.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 function redondear(valor) {
   return valor == null ? null : Math.round(Number(valor) * 100) / 100;
@@ -30,6 +31,12 @@ export async function generar(parcelaId, { tipoPeriodo, fechaInicio, fechaFin, p
     const guardado = await repo.guardar(reporte);
     reporte.idReporte = guardado.id_reporte;
   }
+
+  emitir({
+    categoria: 'REPORTE', accion: 'REPORTE_GENERADO',
+    recurso: { entidad_tipo: 'parcela', entidad_id: parcelaId },
+    metadatos: { tipo_periodo: tipoPeriodo, fecha_inicio: fechaInicio, fecha_fin: fechaFin },
+  });
 
   return reporte;
 }

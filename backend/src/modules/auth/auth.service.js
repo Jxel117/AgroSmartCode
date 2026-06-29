@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword } from '../../utils/password.js';
 import { signToken } from '../../utils/jwt.js';
 import { AppError } from '../../utils/AppError.js';
 import { verificarRecaptcha } from '../../services/recaptcha.service.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 function toPublic(usuario) {
   return {
@@ -16,6 +17,7 @@ function toPublic(usuario) {
     rol: usuario.rol,
     estado: usuario.estado,
     empresaIdentificador: usuario.empresa_identificador,
+    avatar_id: usuario.avatar_id ?? null,
   };
 }
 
@@ -44,6 +46,13 @@ export async function registrar(datos) {
     rol: datos.rol,
     empresaIdentificador: datos.empresaIdentificador ?? null,
   });
+
+  emitir({
+    categoria: 'AUTENTICACION', accion: 'USUARIO_REGISTRADO',
+    actor: { usuario_id: usuario.id_usuario, correo: usuario.correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+    recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario },
+  });
+
   return toPublic(usuario);
 }
 
@@ -67,6 +76,17 @@ export async function login({ correo, contra, captchaToken }, ip) {
     throw new AppError(423, 'Cuenta bloqueada por múltiples intentos fallidos. Recupera tu contraseña para desbloquearla.');
   }
 
+    // Cuenta bloqueada: no permite intentar hasta recuperar contrasena
+  if (usuario.bloqueado) {
+    await intentoRepo.registrar({ correo, ip, exitoso: false, motivoFallo: 'Cuenta bloqueada' });
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'LOGIN_CUENTA_BLOQUEADA', resultado: 'FALLO',
+      actor: { usuario_id: usuario.id_usuario, correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+      contexto: { ip, ruta: 'POST /api/auth/login' },
+    });
+    throw new AppError(423, 'Cuenta bloqueada por múltiples intentos fallidos. Recupera tu contraseña para desbloquearla.');
+  }
+
   if (usuario.estado !== 'ACTIVA') {
     await intentoRepo.registrar({ correo, ip, exitoso: false, motivoFallo: 'Cuenta no activa' });
     throw AppError.forbidden('La cuenta no está activa');
@@ -80,10 +100,22 @@ export async function login({ correo, contra, captchaToken }, ip) {
     const MAX_INTENTOS = 3;
     if (intentos >= MAX_INTENTOS) {
       await usuarioRepo.bloquear(usuario.id_usuario);
+      emitir({
+        categoria: 'AUTENTICACION', accion: 'CUENTA_BLOQUEADA', resultado: 'FALLO',
+        actor: { usuario_id: usuario.id_usuario, correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+        contexto: { ip, ruta: 'POST /api/auth/login' },
+        metadatos: { motivo: 'Máximo de intentos alcanzado' },
+      });
       throw new AppError(423, 'Cuenta bloqueada tras 3 intentos fallidos. Recupera tu contraseña para desbloquearla.');
     }
 
     const restantes = MAX_INTENTOS - intentos;
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'LOGIN_FALLIDO', resultado: 'FALLO',
+      actor: { usuario_id: usuario.id_usuario, correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+      contexto: { ip, ruta: 'POST /api/auth/login' },
+      metadatos: { motivo: 'Contraseña incorrecta', intentos_restantes: restantes },
+    });
     throw new AppError(401, `Credenciales inválidas. Te quedan ${restantes} intento(s) antes del bloqueo.`);
   }
 
@@ -101,9 +133,21 @@ export async function login({ correo, contra, captchaToken }, ip) {
   await sesionRepo.crearSesion({ usuarioId: usuario.id_usuario, token, fechaExpiracion: expiracion });
   await intentoRepo.registrar({ correo, ip, exitoso: true });
 
+  emitir({
+    categoria: 'AUTENTICACION', accion: 'LOGIN_EXITOSO',
+    actor: { usuario_id: usuario.id_usuario, correo: usuario.correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+    recurso: { entidad_tipo: 'sesion', entidad_id: usuario.id_usuario },
+    contexto: { ip, ruta: 'POST /api/auth/login' },
+  });
+
   return { token, usuario: toPublic(usuario) };
 }
 
-export async function logout(token) {
+export async function logout(token, usuario) {
+  emitir({
+    categoria: 'AUTENTICACION', accion: 'LOGOUT',
+    actor: { usuario_id: usuario?.id, correo: usuario?.correo, rol: usuario?.rol, empresa_id: usuario?.empresa },
+    contexto: { ruta: 'POST /api/auth/logout' },
+  });
   await sesionRepo.revocarPorToken(token);
 }

@@ -3,6 +3,7 @@ import { env } from './config/env.js';
 import { pool } from './db/pool.js';
 import { iniciarMqtt, cerrarMqtt } from './mqtt/client.js';
 import { iniciarRealtime, cerrarRealtime } from './realtime/index.js';
+import { conectarAuditoria, cerrarAuditoria } from './audit/audit.emitter.js';
 
 const app = createApp();
 const server = app.listen(env.port, () => {
@@ -16,12 +17,16 @@ iniciarRealtime(server);
 // Iniciar MQTT (cliente al broker)
 iniciarMqtt();
 
+// Iniciar auditoría (conexión a RabbitMQ)
+conectarAuditoria();
+
 // Cierre ordenado
 async function shutdown(signal) {
   console.log(`\n${signal} recibido. Cerrando servidor...`);
   server.close(async () => {
     await cerrarRealtime();
     await cerrarMqtt();
+    await cerrarAuditoria();
     await pool.end();
     console.log('Conexiones cerradas. Adios.');
     process.exit(0);

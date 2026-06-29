@@ -1,5 +1,7 @@
 import * as service from './usuario.service.js';
+import * as repo from './usuario.repository.js';
 import * as parcelaRepo from '../parcelas/parcela.repository.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 export async function listar(req, res) {
   // Multi-tenant: filtra por la empresa del admin logueado
@@ -38,6 +40,27 @@ export async function cambiarPassword(req, res) {
 export async function resetearPassword(req, res) {
   await service.resetearPassword(req.user.empresa, req.params.id, req.body.passwordNueva);
   res.json({ mensaje: 'Contraseña restablecida y cuenta desbloqueada' });
+}
+
+// El propio usuario actualiza su perfil (nombre, apellido, avatar)
+export async function actualizarPerfilPropio(req, res) {
+  const id = req.user.sub ?? req.user.id;
+  const anterior = await repo.findById(id);
+  const usuario = await repo.actualizarPerfil(id, req.body);
+  if (!usuario) {
+    return res.status(400).json({ error: 'No hay cambios para aplicar' });
+  }
+
+  if (req.body.avatar_id !== undefined && req.body.avatar_id !== anterior?.avatar_id) {
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'AVATAR_CAMBIADO',
+      actor: { usuario_id: id, correo: req.user.correo, rol: req.user.rol, empresa_id: req.user.empresa },
+      recurso: { entidad_tipo: 'usuario', entidad_id: id },
+      metadatos: { avatar_anterior: anterior?.avatar_id ?? null, avatar_nuevo: req.body.avatar_id },
+    });
+  }
+
+  res.json({ usuario });
 }
 
 export async function listarAgricultores(req, res) {

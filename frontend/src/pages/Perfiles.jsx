@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { perfilesApi } from '../api/endpoints.js';
 import { useFetch } from '../hooks/useFetch.js';
+import { useValidacionForm } from '../hooks/useValidacionForm.js';
 import EncabezadoPagina from '../components/EncabezadoPagina.jsx';
 import Modal from '../components/Modal.jsx';
+import Campo from '../components/Campo.jsx';
 import { claseBadgeEstado } from '../utils/formato.js';
+import { notif } from '../utils/notif.js';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import ModalConfirmar from '../components/ModalConfirmar.jsx';
 
 const SUELOS = ['HUMIFERO', 'ARENOSO', 'ARCILLOSO'];
 const CULTIVOS = ['HORTALIZAS', 'FRUTOS_ROJOS'];
@@ -22,22 +25,52 @@ const VACIO = {
   fuenteReferencia: '',
 };
 
+// Helper para validar numero requerido con rango
+const numRequerido = (etiqueta, min, max) => (v) => {
+  if (v === '' || v === null || v === undefined) return `${etiqueta} es obligatoria`;
+  const n = Number(v);
+  if (Number.isNaN(n)) return `${etiqueta} debe ser un número`;
+  if (n < min || n > max) return `${etiqueta} debe estar entre ${min} y ${max}`;
+  return null;
+};
+
+const reglas = {
+  uminRecomendado: numRequerido('Humedad mínima', 0, 100),
+  umaxRecomendado: (v, datos) => {
+    const base = numRequerido('Humedad máxima', 0, 100)(v);
+    if (base) return base;
+    if (Number(v) <= Number(datos.uminRecomendado)) return 'Debe ser mayor que la humedad mínima';
+    return null;
+  },
+  uminCriticoRecomendado: (v, datos) => {
+    const base = numRequerido('Humedad crítica', 0, 100)(v);
+    if (base) return base;
+    if (Number(v) >= Number(datos.uminRecomendado)) return 'Debe ser menor que la humedad mínima';
+    return null;
+  },
+  tMaximoRecomendado: numRequerido('Temperatura máxima', 0, 60),
+  tminRecomendado: (v, datos) => {
+    const base = numRequerido('Temperatura mínima', -10, 40)(v);
+    if (base) return base;
+    if (Number(v) >= Number(datos.tMaximoRecomendado)) return 'Debe ser menor que la temperatura máxima';
+    return null;
+  },
+};
+
 export default function Perfiles() {
   const { datos, cargando, recargar } = useFetch(() => perfilesApi.listar().then((r) => r.data.perfiles));
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [form, setForm] = useState(VACIO);
   const [guardando, setGuardando] = useState(false);
-  const [errorForm, setErrorForm] = useState('');
+  const [modalEliminar, setModalEliminar] = useState({ abierto: false, perfil: null, cargando: false });
 
-  function num(campo, e) {
-    setForm({ ...form, [campo]: e.target.value });
-  }
+  const { errores, validar, limpiarError, limpiarTodos, setErroresBackend } = useValidacionForm();
 
   function abrirNuevo() {
     setEditando(null);
     setForm(VACIO);
-    setErrorForm('');
+    limpiarTodos();
     setModal(true);
   }
 
@@ -54,31 +87,21 @@ export default function Perfiles() {
       descripcionAgronomica: p.descripcion_agronomica ?? '',
       fuenteReferencia: p.fuente_referencia ?? '',
     });
-    setErrorForm('');
+    limpiarTodos();
     setModal(true);
   }
 
-  function traducirCampo(campo) {
-    const traducciones = {
-      tipoSuelo: 'Tipo de suelo',
-      tipoCultivo: 'Tipo de cultivo',
-      uminRecomendado: 'Humedad mínima',
-      umaxRecomendado: 'Humedad máxima',
-      uminCriticoRecomendado: 'Humedad crítica',
-      tMaximoRecomendado: 'Temperatura máxima',
-      tminRecomendado: 'Temperatura mínima',
-      descripcionAgronomica: 'Descripción',
-      fuenteReferencia: 'Fuente',
-    };
-    return traducciones[campo] ?? campo;
+  function setCampo(campo, valor) {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+    if (errores[campo]) limpiarError(campo);
   }
 
   async function guardar(e) {
     e.preventDefault();
+    if (!validar(form, reglas)) return;
+
     setGuardando(true);
-    setErrorForm('');
     try {
-      // Convertir strings a numeros antes de enviar
       const payload = {
         ...form,
         uminRecomendado: Number(form.uminRecomendado),
@@ -90,8 +113,10 @@ export default function Perfiles() {
 
       if (editando) {
         await perfilesApi.actualizar(editando, payload);
+        notif.exito('Configuración actualizada correctamente');
       } else {
         await perfilesApi.crear(payload);
+        notif.exito('Configuración creada correctamente');
       }
       setModal(false);
       setForm(VACIO);
@@ -100,33 +125,34 @@ export default function Perfiles() {
     } catch (err) {
       const detalles = err.response?.data?.details;
       if (Array.isArray(detalles) && detalles.length > 0) {
-        const lista = detalles.map((d) => `• ${traducirCampo(d.campo)}: ${d.mensaje}`).join('\n');
-        setErrorForm(lista);
+        setErroresBackend(detalles);
+        notif.formulario.error('Revisa los campos marcados');
       } else {
-        setErrorForm(err.response?.data?.error ?? 'Error al guardar');
+        notif.error(err.response?.data?.error ?? 'No se pudo guardar la configuración');
       }
     } finally {
       setGuardando(false);
     }
   }
 
-  async function eliminar(id) {
-  toast('¿Eliminar esta configuración?', {
-    description: 'Esta acción no se puede deshacer.',
-    action: {
-      label: 'Eliminar',
-      onClick: async () => {
-        try {
-          await perfilesApi.eliminar(id);
-          toast.success('Configuración eliminada');
-          recargar();
-        } catch (err) {
-          toast.error(err.response?.data?.error ?? 'No se pudo eliminar');
-        }
-      },
-    },
-  });
-}
+  function eliminar(p) {
+    setModalEliminar({ abierto: true, perfil: p, cargando: false });
+  }
+
+  async function confirmarEliminar() {
+    const p = modalEliminar.perfil;
+    if (!p) return;
+    setModalEliminar((prev) => ({ ...prev, cargando: true }));
+    try {
+      await perfilesApi.eliminar(p.id_perfil);
+      notif.exito('Configuración eliminada');
+      setModalEliminar({ abierto: false, perfil: null, cargando: false });
+      recargar();
+    } catch (err) {
+      notif.error(err.response?.data?.error ?? 'No se pudo eliminar la configuración');
+      setModalEliminar((prev) => ({ ...prev, cargando: false }));
+    }
+  }
 
   return (
     <>
@@ -173,7 +199,7 @@ export default function Perfiles() {
                   <Pencil size={14} strokeWidth={1.8} />
                   Editar
                 </button>
-                <button className="btn btn-peligro" style={{ padding: '0.4rem 0.7rem', flex: 1 }} onClick={() => eliminar(p.id_perfil)}>
+                <button className="btn btn-peligro" style={{ padding: '0.4rem 0.7rem', flex: 1 }} onClick={() => eliminar(p)}>
                   <Trash2 size={14} strokeWidth={1.8} />
                   Eliminar
                 </button>
@@ -193,129 +219,166 @@ export default function Perfiles() {
         onCerrar={() => setModal(false)}
         titulo={editando ? 'Editar configuración' : 'Nueva configuración'}
       >
-        <form onSubmit={guardar}>
-          {errorForm && (
-            <div className="login-error" style={{ marginBottom: '1rem', whiteSpace: 'pre-line' }}>
-              {errorForm}
-            </div>
-          )}
-
+        <form onSubmit={guardar} noValidate>
           <p style={{ fontSize: '0.86rem', color: 'var(--gris-700)', marginBottom: '1rem' }}>
             Define los umbrales agronómicos para un tipo de cultivo y suelo. El sistema usará estos valores como referencia al configurar el riego automático de los terrenos.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="campo">
-              <label>Tipo de suelo</label>
-              <select value={form.tipoSuelo} onChange={(e) => setForm({ ...form, tipoSuelo: e.target.value })}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+            <Campo label="Tipo de suelo" id="tipoSuelo" ayuda="Característica del terreno que afecta la retención de agua.">
+              <select id="tipoSuelo" value={form.tipoSuelo} onChange={(e) => setCampo('tipoSuelo', e.target.value)}>
                 {SUELOS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
-              <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-                Característica del terreno que afecta la retención de agua.
-              </span>
-            </div>
-            <div className="campo">
-              <label>Tipo de cultivo</label>
-              <select value={form.tipoCultivo} onChange={(e) => setForm({ ...form, tipoCultivo: e.target.value })}>
+            </Campo>
+            <Campo label="Tipo de cultivo" id="tipoCultivo" ayuda="Categoría de planta a la que aplica esta configuración.">
+              <select id="tipoCultivo" value={form.tipoCultivo} onChange={(e) => setCampo('tipoCultivo', e.target.value)}>
                 {CULTIVOS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-                Categoría de planta a la que aplica esta configuración.
-              </span>
-            </div>
+            </Campo>
           </div>
 
           <h4 style={{ fontSize: '0.95rem', margin: '1.2rem 0 0.6rem', color: 'var(--gris-700)' }}>Umbrales de humedad</h4>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="campo">
-              <label>Humedad mínima (%)</label>
-              <input type="number" step="0.1" min="0" max="100"
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+            <Campo
+              label="Humedad mínima (%)"
+              id="uminRecomendado"
+              obligatorio
+              error={errores.uminRecomendado}
+              ayuda="Por debajo de este valor el sistema activa el riego."
+            >
+              <input
+                id="uminRecomendado"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
                 value={form.uminRecomendado}
-                onChange={(e) => num('uminRecomendado', e)}
-                placeholder="Ej: 45" />
-              <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-                Por debajo de este valor el sistema activa el riego.
-              </span>
-            </div>
-            <div className="campo">
-              <label>Humedad máxima (%)</label>
-              <input type="number" step="0.1" min="0" max="100"
+                onChange={(e) => setCampo('uminRecomendado', e.target.value)}
+                placeholder="Ej: 45"
+              />
+            </Campo>
+            <Campo
+              label="Humedad máxima (%)"
+              id="umaxRecomendado"
+              obligatorio
+              error={errores.umaxRecomendado}
+              ayuda="Al alcanzar este valor el sistema detiene el riego."
+            >
+              <input
+                id="umaxRecomendado"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
                 value={form.umaxRecomendado}
-                onChange={(e) => num('umaxRecomendado', e)}
-                placeholder="Ej: 70" />
-              <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-                Al alcanzar este valor el sistema detiene el riego.
-              </span>
-            </div>
+                onChange={(e) => setCampo('umaxRecomendado', e.target.value)}
+                placeholder="Ej: 70"
+              />
+            </Campo>
           </div>
 
-          <div className="campo">
-            <label>Humedad crítica (%)</label>
-            <input type="number" step="0.1" min="0" max="100"
+          <Campo
+            label="Humedad crítica (%)"
+            id="uminCriticoRecomendado"
+            obligatorio
+            error={errores.uminCriticoRecomendado}
+            ayuda="Nivel de emergencia agronómica. Por debajo de aquí el sistema genera una alerta crítica."
+          >
+            <input
+              id="uminCriticoRecomendado"
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
               value={form.uminCriticoRecomendado}
-              onChange={(e) => num('uminCriticoRecomendado', e)}
-              placeholder="Ej: 25" />
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              Nivel de emergencia agronómica. Por debajo de aquí el sistema genera una alerta crítica.
-            </span>
-          </div>
+              onChange={(e) => setCampo('uminCriticoRecomendado', e.target.value)}
+              placeholder="Ej: 25"
+            />
+          </Campo>
 
           <h4 style={{ fontSize: '0.95rem', margin: '1.2rem 0 0.6rem', color: 'var(--gris-700)' }}>Umbrales de temperatura</h4>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="campo">
-              <label>Temperatura máxima (°C)</label>
-              <input type="number" step="0.1" min="0" max="60"
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+            <Campo
+              label="Temperatura máxima (°C)"
+              id="tMaximoRecomendado"
+              obligatorio
+              error={errores.tMaximoRecomendado}
+              ayuda="Por encima de este valor el riego se detiene aunque haya humedad baja."
+            >
+              <input
+                id="tMaximoRecomendado"
+                type="number"
+                step="0.1"
+                min="0"
+                max="60"
                 value={form.tMaximoRecomendado}
-                onChange={(e) => num('tMaximoRecomendado', e)}
-                placeholder="Ej: 35" />
-              <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-                Por encima de este valor el riego se detiene aunque haya humedad baja.
-              </span>
-            </div>
-            <div className="campo">
-              <label>Temperatura mínima (°C)</label>
-              <input type="number" step="0.1" min="-10" max="40"
+                onChange={(e) => setCampo('tMaximoRecomendado', e.target.value)}
+                placeholder="Ej: 35"
+              />
+            </Campo>
+            <Campo
+              label="Temperatura mínima (°C)"
+              id="tminRecomendado"
+              obligatorio
+              error={errores.tminRecomendado}
+              ayuda="Temperatura mínima tolerada por el cultivo."
+            >
+              <input
+                id="tminRecomendado"
+                type="number"
+                step="0.1"
+                min="-10"
+                max="40"
                 value={form.tminRecomendado}
-                onChange={(e) => num('tminRecomendado', e)}
-                placeholder="Ej: 12" />
-              <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-                Temperatura mínima tolerada por el cultivo.
-              </span>
-            </div>
+                onChange={(e) => setCampo('tminRecomendado', e.target.value)}
+                placeholder="Ej: 12"
+              />
+            </Campo>
           </div>
 
           <h4 style={{ fontSize: '0.95rem', margin: '1.2rem 0 0.6rem', color: 'var(--gris-700)' }}>Información adicional</h4>
 
-          <div className="campo">
-            <label>Descripción</label>
+          <Campo
+            label="Descripción"
+            id="descripcionAgronomica"
+            ayuda="Nota libre del agrónomo sobre el cultivo, suelo o ciclo de riego."
+          >
             <input
+              id="descripcionAgronomica"
               value={form.descripcionAgronomica}
-              onChange={(e) => setForm({ ...form, descripcionAgronomica: e.target.value })}
-              placeholder="Ej: Tomate riñón de exterior, ciclo corto, suelo arcilloso" />
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              Nota libre del agrónomo sobre el cultivo, suelo o ciclo de riego.
-            </span>
-          </div>
+              onChange={(e) => setCampo('descripcionAgronomica', e.target.value)}
+              placeholder="Ej: Tomate riñón de exterior, ciclo corto, suelo arcilloso"
+            />
+          </Campo>
 
-          <div className="campo">
-            <label>Fuente de referencia</label>
+          <Campo
+            label="Fuente de referencia"
+            id="fuenteReferencia"
+            ayuda="De dónde provienen los datos agronómicos (manual, boletín, experiencia propia)."
+          >
             <input
+              id="fuenteReferencia"
               value={form.fuenteReferencia}
-              onChange={(e) => setForm({ ...form, fuenteReferencia: e.target.value })}
-              placeholder="Ej: INIAP Boletín 128, Manual UNL Agronomía" />
-            <span style={{ fontSize: '0.74rem', color: 'var(--gris-500)' }}>
-              De dónde provienen los datos agronómicos (manual, boletín, experiencia propia).
-            </span>
-          </div>
+              onChange={(e) => setCampo('fuenteReferencia', e.target.value)}
+              placeholder="Ej: INIAP Boletín 128, Manual UNL Agronomía"
+            />
+          </Campo>
 
-          <button className="btn btn-primario" type="submit" disabled={guardando}
-            style={{ width: '100%', marginTop: '1rem' }}>
+          <button className="btn btn-primario" type="submit" disabled={guardando} style={{ width: '100%', marginTop: '1rem' }}>
             {guardando ? 'Guardando...' : (editando ? 'Actualizar configuración' : 'Crear configuración')}
           </button>
         </form>
       </Modal>
+      <ModalConfirmar
+        abierto={modalEliminar.abierto}
+        onCerrar={() => setModalEliminar({ abierto: false, perfil: null, cargando: false })}
+        onConfirmar={confirmarEliminar}
+        titulo={`¿Eliminar configuración ${modalEliminar.perfil?.tipo_cultivo ?? ''} / ${modalEliminar.perfil?.tipo_suelo ?? ''}?`}
+        descripcion="Esta acción no se puede deshacer."
+        cargando={modalEliminar.cargando}
+      />
     </>
   );
 }

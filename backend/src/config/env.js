@@ -58,4 +58,10 @@ export const env = {
     secret: process.env.RECAPTCHA_SECRET ?? '',
     enabled: (process.env.RECAPTCHA_ENABLED ?? 'false') === 'true',
   },
+
+  // Configuración de auditoría
+  audit: {
+    enabled: (process.env.AUDIT_ENABLED ?? 'false') === 'true',
+    rabbitmqUrl: process.env.AUDIT_RABBITMQ_URL ?? '',
+  },
 };

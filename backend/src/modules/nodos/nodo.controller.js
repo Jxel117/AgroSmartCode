@@ -10,7 +10,7 @@ export async function obtener(req, res) {
 }
 
 export async function crear(req, res) {
-  const resultado = await service.crear(req.body, req.user.empresa);
+  const resultado = await service.crear(req.body, req.user);
   res.status(201).json(resultado);
 }
 
@@ -19,11 +19,11 @@ export async function actualizar(req, res) {
 }
 
 export async function cambiarEstado(req, res) {
-  const nodo = await service.cambiarEstado(req.params.id, req.body.estado);
+  const nodo = await service.cambiarEstado(req.params.id, req.body.estado, req.user);
   res.json({ nodo });
 }
 
 export async function eliminar(req, res) {
-  await service.eliminar(req.params.id);
+  await service.eliminar(req.params.id, req.user);
   res.status(204).send();
 }

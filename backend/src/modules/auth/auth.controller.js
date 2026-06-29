@@ -18,7 +18,7 @@ export async function login(req, res) {
 
 export async function logout(req, res) {
   const token = req.headers.authorization.slice(7);
-  await authService.logout(token);
+  await authService.logout(token, req.user);
   res.json({ mensaje: 'Sesion cerrada' });
 }
 

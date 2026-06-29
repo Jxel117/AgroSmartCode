@@ -7,20 +7,40 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import {
   crearUsuarioSchema, actualizarUsuarioSchema, estadoUsuarioSchema,
   cambiarPasswordSchema, idParamSchema,
+  actualizarPerfilSchema,
 } from './usuario.schemas.js';
 import { esPasswordValida } from '../../utils/passwordPolicy.js';
 
 const router = Router();
 
-// El cambio de la PROPIA contrasena lo puede hacer cualquier usuario autenticado
+// ===== Endpoints del PROPIO perfil (cualquier usuario autenticado) =====
+// IMPORTANTE: estas rutas deben ir ANTES de las rutas con /:id
+// para que "/me" no sea interpretado como un id.
+router.patch(
+  '/me',
+  authenticate,
+  validate(actualizarPerfilSchema),
+  asyncHandler(ctrl.actualizarPerfilPropio)
+);
+
+router.patch(
+  '/me/password',
+  authenticate,
+  validate(cambiarPasswordSchema),
+  asyncHandler(ctrl.cambiarPasswordPropio)
+);
+
+// Cambio de contrasena propia (endpoint heredado)
 router.patch(
   '/mi-password',
   authenticate,
   validate(cambiarPasswordSchema),
   asyncHandler(ctrl.cambiarPassword)
 );
+
 router.get('/agricultores', asyncHandler(ctrl.listarAgricultores));
-// De aqui en adelante, solo ADMINISTRADOR
+
+// ===== De aqui en adelante, solo ADMINISTRADOR =====
 router.use(authenticate, authorize('ADMINISTRADOR'));
 
 router.get('/', asyncHandler(ctrl.listar));

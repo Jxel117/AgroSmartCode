@@ -11,7 +11,7 @@ export async function obtener(req, res) {
 }
 
 export async function crear(req, res) {
-  const parcela = await service.crear(req.body, req.user.empresa);
+  const parcela = await service.crear(req.body, req.user);
   res.status(201).json({ parcela });
 }
 
@@ -21,17 +21,17 @@ export async function actualizar(req, res) {
 }
 
 export async function eliminar(req, res) {
-  await service.eliminar(req.params.id, req.user.empresa);
+  await service.eliminar(req.params.id, req.user);
   res.status(204).send();
 }
 
 export async function asignar(req, res) {
-  await service.asignar(req.params.id, req.body.usuarioId, req.user.empresa);
+  await service.asignar(req.params.id, req.body.usuarioId, req.user);
   res.json({ mensaje: 'Agricultor asignado' });
 }
 
 export async function desasignar(req, res) {
-  await service.desasignar(req.params.id, req.body.usuarioId, req.user.empresa);
+  await service.desasignar(req.params.id, req.body.usuarioId, req.user);
   res.json({ mensaje: 'Agricultor desasignado' });
 }
 

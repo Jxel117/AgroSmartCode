@@ -1,5 +1,6 @@
 import * as repo from './parcela.repository.js';
 import { AppError } from '../../utils/AppError.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 export async function listar(usuario) {
   if (usuario.rol === 'AGRICULTOR') {
@@ -23,12 +24,20 @@ export async function obtener(id, usuario) {
   return obtenerConTenant(id, usuario.empresa);
 }
 
-export async function crear(datos, empresa) {
-  return repo.create({
+export async function crear(datos, usuario) {
+  const parcela = await repo.create({
     latitud: null, longitud: null, areaM2: null, ubicacionDescriptiva: null,
     ...datos,
-    empresaIdentificador: empresa,
+    empresaIdentificador: usuario.empresa,
   });
+
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'PARCELA_CREADA',
+    actor: { usuario_id: usuario.id, correo: usuario.correo, rol: usuario.rol, empresa_id: usuario.empresa },
+    recurso: { entidad_tipo: 'parcela', entidad_id: parcela.id_parcela, entidad_nombre: parcela.nombre_descriptivo },
+  });
+
+  return parcela;
 }
 
 export async function actualizar(id, datos, empresa) {
@@ -37,19 +46,37 @@ export async function actualizar(id, datos, empresa) {
   return actualizada;
 }
 
-export async function eliminar(id, empresa) {
-  await obtenerConTenant(id, empresa);
+export async function eliminar(id, usuario) {
+  const parcela = await obtenerConTenant(id, usuario.empresa);
   await repo.remove(id);
+
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'PARCELA_ELIMINADA',
+    actor: { usuario_id: usuario.id, correo: usuario.correo, rol: usuario.rol, empresa_id: usuario.empresa },
+    recurso: { entidad_tipo: 'parcela', entidad_id: id, entidad_nombre: parcela.nombre_descriptivo },
+  });
 }
 
-export async function asignar(parcelaId, usuarioId, empresa) {
-  await obtenerConTenant(parcelaId, empresa);
+export async function asignar(parcelaId, usuarioId, usuario) {
+  await obtenerConTenant(parcelaId, usuario.empresa);
   await repo.asignarAgricultor(parcelaId, usuarioId);
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'AGRICULTOR_ASIGNADO',
+    actor: { usuario_id: usuario.id, correo: usuario.correo, rol: usuario.rol, empresa_id: usuario.empresa },
+    recurso: { entidad_tipo: 'parcela', entidad_id: parcelaId },
+    metadatos: { agricultor_id: usuarioId },
+  });
 }
 
-export async function desasignar(parcelaId, usuarioId, empresa) {
-  await obtenerConTenant(parcelaId, empresa);
+export async function desasignar(parcelaId, usuarioId, usuario) {
+  await obtenerConTenant(parcelaId, usuario.empresa);
   await repo.desasignarAgricultor(parcelaId, usuarioId);
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'AGRICULTOR_DESASIGNADO',
+    actor: { usuario_id: usuario.id, correo: usuario.correo, rol: usuario.rol, empresa_id: usuario.empresa },
+    recurso: { entidad_tipo: 'parcela', entidad_id: parcelaId },
+    metadatos: { agricultor_id: usuarioId },
+  });
 }
 
 export async function listarAgricultores(parcelaId, empresa) {

@@ -380,3 +380,60 @@ input, select, textarea {
 }
 
 ::-webkit-scrollbar-thumb:hover { background: var(--verde-400); }
+
+/* ============================================
+   Toasts de Sonner: ajustes finos AgroSmart
+   ============================================ */
+
+/* Estilo para los toasts en general */
+.toast-agrosmart {
+  letter-spacing: 0.01em;
+}
+
+/* Toast con posicion forzada al centro arriba (formularios criticos) */
+[data-sonner-toaster][data-y-position='top'] {
+  --offset: 1.5rem;
+}
+
+/* Refinar colores con la paleta de la app */
+[data-sonner-toast][data-type='success'] {
+  background: linear-gradient(135deg, #f1f9ed, #e8f3dd) !important;
+  color: var(--verde-700, #2f5e2c) !important;
+  border-left: 4px solid var(--verde-600, #3d7a38) !important;
+}
+
+[data-sonner-toast][data-type='error'] {
+  background: linear-gradient(135deg, #fdecea, #fcdfd7) !important;
+  color: #8f2c1d !important;
+  border-left: 4px solid #c1452f !important;
+}
+
+[data-sonner-toast][data-type='warning'] {
+  background: linear-gradient(135deg, #fef7e6, #fdecca) !important;
+  color: #8b5a00 !important;
+  border-left: 4px solid #d68800 !important;
+}
+
+[data-sonner-toast][data-type='info'] {
+  background: linear-gradient(135deg, #e8f0fe, #d5e3fd) !important;
+  color: #1e4488 !important;
+  border-left: 4px solid #4a7bda !important;
+}
+
+/* Boton de cerrar mas discreto */
+[data-sonner-toast] [data-close-button] {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: inherit !important;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+[data-sonner-toast]:hover [data-close-button] {
+  opacity: 1;
+}
+
+/* Suavizar entrada/salida */
+[data-sonner-toast][data-mounted='true'] {
+  animation-duration: 0.25s !important;
+}
