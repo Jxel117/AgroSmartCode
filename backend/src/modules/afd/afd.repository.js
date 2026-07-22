@@ -56,6 +56,18 @@ export async function aplicarTransicion(afd, transicion) {
   });
 }
 
+export async function resetToMonitoreo(parcelaId) {
+  const { rowCount } = await query(
+    `UPDATE afd_instancia SET
+       estado_actual = 'S0_MONITOREO',
+       contador_intentos_fallidos = 0,
+       fecha_ultimo_cambio_estado = now()
+     WHERE parcela_id = $1`,
+    [parcelaId]
+  );
+  return rowCount > 0;
+}
+
 export async function findTransiciones(parcelaId, limite = 50) {
   const { rows } = await query(
     `SELECT t.id_transicion, t.estado_origen, t.estado_destino, t.simbolo_disparador,

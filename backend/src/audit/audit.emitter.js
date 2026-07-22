@@ -1,6 +1,7 @@
 import amqp from 'amqplib';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env.js';
+import { obtenerContexto } from './audit.context.js';
 
 const QUEUE = 'auditoria.eventos';
 let channel = null;
@@ -39,6 +40,12 @@ export async function conectarAuditoria() {
   }
 }
 
+const CAMPOS_SENSIBLES = [
+  'contra', 'password', 'passwordNueva', 'passwordActual',
+  'token', 'captchaToken', 'refreshToken', 'contraHash',
+  'secreto', 'secretoHash',
+];
+
 export function emitir({
   categoria,
   accion,
@@ -51,11 +58,15 @@ export function emitir({
   if (!channel) return;
 
   const metadatosSafe = { ...metadatos };
-  for (const key of ['contra', 'password', 'passwordNueva', 'passwordActual',
-                      'token', 'captchaToken', 'refreshToken', 'contraHash',
-                      'secreto', 'secretoHash']) {
+  for (const key of CAMPOS_SENSIBLES) {
     delete metadatosSafe[key];
   }
+
+  // El contexto de la peticion en curso (si lo hay) rellena los huecos que el
+  // llamador no haya especificado: quien, desde que IP, con que navegador y
+  // sobre que ruta. Lo explicito siempre tiene prioridad.
+  const peticion = obtenerContexto();
+  const actorPeticion = peticion?.actor ?? {};
 
   const evento = {
     evento_id: randomUUID(),
@@ -64,10 +75,10 @@ export function emitir({
     accion,
     resultado,
     actor: {
-      usuario_id: actor.usuario_id ?? null,
-      correo: actor.correo ?? null,
-      rol: actor.rol ?? null,
-      empresa_id: actor.empresa_id ?? null,
+      usuario_id: actor.usuario_id ?? actorPeticion.usuario_id ?? null,
+      correo: actor.correo ?? actorPeticion.correo ?? null,
+      rol: actor.rol ?? actorPeticion.rol ?? null,
+      empresa_id: actor.empresa_id ?? actorPeticion.empresa_id ?? null,
     },
     recurso: {
       entidad_tipo: recurso.entidad_tipo ?? null,
@@ -75,9 +86,9 @@ export function emitir({
       entidad_nombre: recurso.entidad_nombre ?? null,
     },
     contexto: {
-      ip: contexto.ip ?? null,
-      user_agent: contexto.user_agent ?? null,
-      ruta: contexto.ruta ?? null,
+      ip: contexto.ip ?? peticion?.ip ?? null,
+      user_agent: contexto.user_agent ?? peticion?.user_agent ?? null,
+      ruta: contexto.ruta ?? peticion?.ruta ?? null,
     },
     metadatos: metadatosSafe,
   };

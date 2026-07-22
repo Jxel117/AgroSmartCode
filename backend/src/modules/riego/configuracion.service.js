@@ -3,6 +3,7 @@ import * as perfilRepo from '../perfiles/perfil.repository.js';
 import { query } from '../../db/pool.js';
 import { AppError } from '../../utils/AppError.js';
 import { emitir } from '../../audit/audit.emitter.js';
+import { publicarConfigParcela } from '../../mqtt/client.js';
 
 export async function obtenerVigente(parcelaId) {
   const config = await configRepo.findVigente(parcelaId);
@@ -29,6 +30,10 @@ export async function aplicarManual(parcelaId, d, usuario) {
     recurso: { entidad_tipo: 'parcela', entidad_id: parcelaId },
     metadatos: { umin: d.umin, umax: d.umax, umin_critico: d.uminCritico },
   });
+
+  publicarConfigParcela(parcelaId).catch((e) =>
+    console.error('Error publicando config MQTT:', e.message)
+  );
 
   return config;
 }
@@ -61,6 +66,10 @@ export async function aplicarPerfil(parcelaId, perfilId, usuario) {
     recurso: { entidad_tipo: 'parcela', entidad_id: parcelaId },
     metadatos: { perfil_id: perfilId, perfil_nombre: perfil.tipo_cultivo },
   });
+
+  publicarConfigParcela(parcelaId).catch((e) =>
+    console.error('Error publicando config MQTT:', e.message)
+  );
 
   return config;
 }

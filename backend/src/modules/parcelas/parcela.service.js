@@ -41,8 +41,15 @@ export async function crear(datos, usuario) {
 }
 
 export async function actualizar(id, datos, empresa) {
-  await obtenerConTenant(id, empresa);
+  const anterior = await obtenerConTenant(id, empresa);
   const actualizada = await repo.update(id, datos);
+
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'PARCELA_ACTUALIZADA',
+    recurso: { entidad_tipo: 'parcela', entidad_id: id, entidad_nombre: actualizada?.nombre_descriptivo ?? anterior.nombre_descriptivo },
+    metadatos: { campos_modificados: Object.keys(datos) },
+  });
+
   return actualizada;
 }
 

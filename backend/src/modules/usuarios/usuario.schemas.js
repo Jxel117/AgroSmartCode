@@ -16,9 +16,13 @@ export const crearUsuarioSchema = z.object({
       (correo) => correo.toLowerCase().endsWith('@gmail.com'),
       { message: 'Solo se aceptan correos @gmail.com como correo de validación' }
     ),
-  contra: passwordFuerte,
+  // Los AGRICULTOR no traen contrasena: se activan via enlace enviado por correo.
+  contra: passwordFuerte.optional(),
   rol: z.enum(['ADMINISTRADOR', 'AGRICULTOR']).default('AGRICULTOR'),
-});
+}).refine(
+  (datos) => datos.rol !== 'ADMINISTRADOR' || !!datos.contra,
+  { message: 'La contraseña es obligatoria para el rol ADMINISTRADOR', path: ['contra'] }
+);
 
 export const actualizarUsuarioSchema = z.object({
   nombre: z.string().min(2).max(100),

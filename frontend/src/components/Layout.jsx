@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useSocket, useEventoSocket } from '../context/SocketContext.jsx';
 import { alertasApi } from '../api/endpoints.js';
+import useCerrarSesionAlUsarHistorial from '../hooks/useCerrarSesionAlUsarHistorial.js';
 import {
   LayoutDashboard, Cpu, Map, SlidersHorizontal,
   Bell, Users, LogOut, User, ChevronDown, ShieldCheck,
@@ -12,41 +13,43 @@ import Avatar from './Avatar.jsx';
 import { AnimatePresence } from 'framer-motion';
 import TransicionPagina from './TransicionPagina.jsx';
 import ModalAvatar from './ModalAvatar.jsx';
-import { ImageIcon } from 'lucide-react';
 
 const navItems = [
-  { to: '/', label: 'Inicio', Icono: LayoutDashboard },
+  { to: '/', label: 'Inicio', Icono: LayoutDashboard, tambienActivoEn: ['/eventos'] },
+    { to: '/alertas', label: 'Alertas', Icono: Bell, conContador: true },
   { to: '/nodos', label: 'Dispositivos', Icono: Cpu },
   { to: '/parcelas', label: 'Terrenos', Icono: Map },
-  { to: '/perfiles', label: 'Parámetros', Icono: SlidersHorizontal, soloAdmin: true },
-  { to: '/alertas', label: 'Alertas', Icono: Bell, conContador: true },
+  { to: '/perfiles', label: 'Configuraciones de riego', Icono: SlidersHorizontal, soloAdmin: true },
   { to: '/usuarios', label: 'Usuarios', Icono: Users, soloAdmin: true },
 ];
 
 export default function Layout() {
-  const { usuario, logout, esAdmin } = useAuth();
+  const { usuario, logout, esAdmin, esAuditor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { conectado } = useSocket();
+  useCerrarSesionAlUsarHistorial();
   const [alertasNoLeidas, setAlertasNoLeidas] = useState(0);
   const [menuPerfilAbierto, setMenuPerfilAbierto] = useState(false);
   const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
   const menuPerfilRef = useRef(null);
 
-  // Cargar contador inicial de alertas
-  useEffect(() => {
-    alertasApi.contar()
+  const refrescarContadorAlertas = useCallback(() => {
+    return alertasApi.contar()
       .then(({ data }) => setAlertasNoLeidas(data.total))
-      .catch(() => setAlertasNoLeidas(0));
+      .catch(() => { });
   }, []);
 
-  // Refrescar contador al cambiar de pagina (excepto /alertas)
+  // Cargar contador inicial de alertas
   useEffect(() => {
-    if (location.pathname !== '/alertas') {
-      alertasApi.contar()
-        .then(({ data }) => setAlertasNoLeidas(data.total))
-        .catch(() => { });
-    }
+    refrescarContadorAlertas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refrescar contador al cambiar de pagina (cubre el caso de marcar leidas y luego navegar)
+  useEffect(() => {
+    refrescarContadorAlertas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   // WebSocket: nueva alerta incrementa contador
@@ -93,27 +96,37 @@ export default function Layout() {
 
           {/* Navegacion principal */}
           <nav className="header-nav">
-            {navItems
-              .filter((item) => !item.soloAdmin || esAdmin)
-              .map(({ to, label, Icono, conContador }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/'}
-                  className={({ isActive }) => `header-nav-item ${isActive ? 'activo' : ''}`}
-                >
-                  <Icono size={17} strokeWidth={1.8} />
-                  <span>{label}</span>
-                  {conContador && alertasNoLeidas > 0 && (
-                    <span className="header-badge">
-                      {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            {esAdmin && (
+            {esAuditor ? (
+              <NavLink to="/" end className={({ isActive }) => `header-nav-item ${isActive ? 'activo' : ''}`}>
+                <LayoutDashboard size={17} strokeWidth={1.8} />
+                <span>Inicio</span>
+              </NavLink>
+            ) : (
+              navItems
+                .filter((item) => !item.soloAdmin || esAdmin)
+                .map(({ to, label, Icono, conContador, tambienActivoEn }) => {
+                  const activoExtra = tambienActivoEn?.includes(location.pathname);
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/'}
+                      className={({ isActive }) => `header-nav-item ${isActive || activoExtra ? 'activo' : ''}`}
+                    >
+                      <Icono size={17} strokeWidth={1.8} />
+                      <span>{label}</span>
+                      {conContador && alertasNoLeidas > 0 && (
+                        <span className="header-badge">
+                          {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
+                        </span>
+                      )}
+                    </NavLink>
+                  );
+                })
+            )}
+            {(esAdmin || esAuditor) && (
               <a
-                href={`http://3.93.100.166:8081?token=${sessionStorage.getItem('agrosmart_token')}`} 
+                href={`http://3.93.100.166:8081?token=${sessionStorage.getItem('agrosmart_token')}`}
                 //Para trabajar en local, descomentar la siguiente linea y comentar la anterior
                 //href={`${window.location.protocol}//${window.location.hostname}:8081?token=${sessionStorage.getItem('agrosmart_token')}`}
                 target="_blank"
@@ -163,14 +176,16 @@ export default function Layout() {
                       <div className="header-perfil-empresa">{usuario.empresaIdentificador}</div>
                     )}
                     <div className="header-perfil-rol">
-                      {esAdmin ? 'Administrador' : 'Agricultor'}
+                      {esAuditor ? 'Auditor' : esAdmin ? 'Administrador' : 'Agricultor'}
                     </div>
                   </div>
                   <div className="header-perfil-separador" />
-                  <button className="header-perfil-opcion" onClick={abrirModalAvatar}>
-                    <User size={15} strokeWidth={1.8} />
-                    Cambiar avatar
-                  </button>
+                  {!esAuditor && (
+                    <button className="header-perfil-opcion" onClick={abrirModalAvatar}>
+                      <User size={15} strokeWidth={1.8} />
+                      Cambiar avatar
+                    </button>
+                  )}
                   <button className="header-perfil-opcion header-perfil-salir" onClick={salir}>
                     <LogOut size={15} strokeWidth={1.8} />
                     Cerrar sesión
@@ -187,7 +202,7 @@ export default function Layout() {
         <div className="area-contenido-interno">
           <AnimatePresence mode="wait">
             <TransicionPagina key={location.pathname}>
-              <Outlet />
+              <Outlet context={{ refrescarContadorAlertas }} />
             </TransicionPagina>
           </AnimatePresence>
         </div>

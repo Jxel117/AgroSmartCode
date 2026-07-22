@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Domine:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* ===== Paleta AgroSmart ===== */
@@ -55,7 +55,7 @@
   --esp-8:  4rem;
 
   /* ===== Tipografias ===== */
-  --fuente-titulo: 'Fraunces', Georgia, serif;
+  --fuente-titulo: 'Domine', Georgia, serif;
   --fuente-texto:  'Outfit', system-ui, sans-serif;
 
   /* ===== Transiciones ===== */
@@ -189,6 +189,26 @@ input, select, textarea {
 }
 .tarjeta-hover:hover {
   box-shadow: var(--sombra-md);
+}
+
+/* Indicador "en vivo": punto pulsante para secciones que se actualizan por websocket */
+.en-vivo {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.72rem; font-weight: 600; color: var(--verde-600);
+  background: var(--verde-50); padding: 0.25rem 0.6rem; border-radius: var(--radio-full);
+  flex-shrink: 0;
+}
+.en-vivo-punto {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--verde-500);
+  animation: en-vivo-pulso 1.8s ease-out infinite;
+}
+@keyframes en-vivo-pulso {
+  0%   { box-shadow: 0 0 0 0 rgba(79, 154, 69, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(79, 154, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(79, 154, 69, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .en-vivo-punto { animation: none; }
 }
 
 /* ===== Campos de formulario ===== */
@@ -436,4 +456,21 @@ input, select, textarea {
 /* Suavizar entrada/salida */
 [data-sonner-toast][data-mounted='true'] {
   animation-duration: 0.25s !important;
+}
+
+/* ============================================
+   Mensajes centrados: alertas criticas de login
+   (credenciales invalidas, captcha) sobrepuestas
+   al formulario, en el centro de la pantalla
+   ============================================ */
+.toast-centro[data-sonner-toast] {
+  position: fixed !important;
+  top: 10.7rem !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translateX(-50%) !important;
+  width: min(90vw, 400px);
+  z-index: 9999;
+  box-shadow: 0 20px 50px rgba(8, 20, 6, 0.45) !important;
 }

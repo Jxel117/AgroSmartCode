@@ -6,7 +6,8 @@ import { validate } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const router = Router();
-router.use(authenticate);
+// Monitoreo: solo administrador/agricultor (el auditor no ve monitoreo)
+router.use(authenticate, authorize('ADMINISTRADOR', 'AGRICULTOR'));
 
 const parcelaParam = z.object({ parcelaId: z.string().uuid() });
 const idParam = z.object({ id: z.string().uuid() });

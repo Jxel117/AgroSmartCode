@@ -64,10 +64,15 @@ export const usuariosApi = {
     api.patch('/usuarios/mi-password', { passwordActual, passwordNueva }),
   resetearPassword: (id, passwordNueva) =>
     api.patch(`/usuarios/${id}/password`, { passwordNueva }),
+  reenviarActivacion: (id) => api.post(`/usuarios/${id}/reenviar-activacion`),
   parcelas: (id) => api.get(`/usuarios/${id}/parcelas`),
   asignarParcela: (id, parcelaId) => api.post(`/usuarios/${id}/parcelas`, { parcelaId }),
   desasignarParcela: (id, parcelaId) => api.delete(`/usuarios/${id}/parcelas`, { data: { parcelaId } }),
    actualizarPerfilPropio: (datos) => api.patch('/usuarios/me', datos),
+};
+
+export const adminApi = {
+  dashboard: () => api.get('/admin/dashboard'),
 };
 
 export const authApi = {

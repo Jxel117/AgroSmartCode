@@ -8,12 +8,18 @@ import riegoRoutes from './modules/riego/riego.routes.js';
 import alertaRoutes from './modules/alertas/alerta.routes.js';
 import programacionRoutes from './modules/riego/programacion.routes.js';
 import reporteRoutes from './modules/reportes/reporte.routes.js';
+import adminRoutes from './modules/admin/admin.routes.js';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import { z } from 'zod';
 import { env } from './config/env.js';
 import { notFoundHandler, errorHandler } from './middlewares/error.middleware.js';
+import { contextoAuditoria } from './audit/audit.context.js';
+
+// Mensajes de validacion de zod en espanol (afecta a todos los schemas de la API)
+z.config(z.locales.es());
 
 export function createApp() {
   const app = express();
@@ -22,6 +28,10 @@ export function createApp() {
   app.use(cors({ origin: env.corsOrigin, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
+
+  // Abre el contexto de auditoria de la peticion (ip, user agent, ruta).
+  // El actor se anade despues, cuando el middleware de autenticacion valida el JWT.
+  app.use(contextoAuditoria);
 
   // Ruta de salud
   app.get('/api/health', (req, res) => {
@@ -39,6 +49,7 @@ export function createApp() {
   app.use('/api/alertas', alertaRoutes);
   app.use('/api/programacion', programacionRoutes);
   app.use('/api/reportes', reporteRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // Manejo de rutas inexistentes y errores (siempre al final)
   app.use(notFoundHandler);

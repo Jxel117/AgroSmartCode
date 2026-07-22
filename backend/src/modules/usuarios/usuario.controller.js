@@ -2,6 +2,7 @@ import * as service from './usuario.service.js';
 import * as repo from './usuario.repository.js';
 import * as parcelaRepo from '../parcelas/parcela.repository.js';
 import { emitir } from '../../audit/audit.emitter.js';
+import { AppError } from '../../utils/AppError.js';
 
 export async function listar(req, res) {
   // Multi-tenant: filtra por la empresa del admin logueado
@@ -11,35 +12,41 @@ export async function listar(req, res) {
 
 export async function crear(req, res) {
   // El nuevo usuario hereda la empresa del admin que lo crea
-  const usuario = await service.crear(req.body, req.user.empresa);
+  const usuario = await service.crear(req.body, req.user);
   res.status(201).json({ usuario });
 }
 
 export async function actualizar(req, res) {
-  const usuario = await service.actualizar(req.params.id, req.body, req.user.id, req.user.empresa);
+  const usuario = await service.actualizar(req.params.id, req.body, req.user);
   res.json({ usuario });
 }
 
 export async function cambiarEstado(req, res) {
-  const usuario = await service.cambiarEstado(req.params.id, req.body.estado, req.user.id, req.user.empresa);
+  const usuario = await service.cambiarEstado(req.params.id, req.body.estado, req.user);
   res.json({ usuario });
 }
 
 export async function eliminar(req, res) {
-  await service.eliminar(req.params.id, req.user.id, req.user.empresa);
+  await service.eliminar(req.params.id, req.user);
   res.status(204).send();
 }
 
 // El propio usuario cambia su contrasena
 export async function cambiarPassword(req, res) {
-  await service.cambiarPassword(req.user.id, req.body.passwordActual, req.body.passwordNueva);
+  await service.cambiarPassword(req.user, req.body.passwordActual, req.body.passwordNueva);
   res.json({ mensaje: 'Contraseña actualizada' });
 }
 
 // El admin resetea la contrasena de un usuario de su empresa
 export async function resetearPassword(req, res) {
-  await service.resetearPassword(req.user.empresa, req.params.id, req.body.passwordNueva);
+  await service.resetearPassword(req.user, req.params.id, req.body.passwordNueva);
   res.json({ mensaje: 'Contraseña restablecida y cuenta desbloqueada' });
+}
+
+// El admin reenvia el correo de activacion a un usuario que aun no valido su cuenta
+export async function reenviarActivacion(req, res) {
+  await service.reenviarActivacion(req.user, req.params.id);
+  res.json({ mensaje: 'Correo de activación reenviado' });
 }
 
 // El propio usuario actualiza su perfil (nombre, apellido, avatar)
@@ -54,9 +61,18 @@ export async function actualizarPerfilPropio(req, res) {
   if (req.body.avatar_id !== undefined && req.body.avatar_id !== anterior?.avatar_id) {
     emitir({
       categoria: 'AUTENTICACION', accion: 'AVATAR_CAMBIADO',
-      actor: { usuario_id: id, correo: req.user.correo, rol: req.user.rol, empresa_id: req.user.empresa },
       recurso: { entidad_tipo: 'usuario', entidad_id: id },
       metadatos: { avatar_anterior: anterior?.avatar_id ?? null, avatar_nuevo: req.body.avatar_id },
+    });
+  }
+
+  // Cualquier otro cambio sobre los datos propios (nombre, apellido) tambien se audita.
+  const camposPerfil = Object.keys(req.body).filter((c) => c !== 'avatar_id');
+  if (camposPerfil.length > 0) {
+    emitir({
+      categoria: 'GESTION_USUARIO', accion: 'PERFIL_PROPIO_ACTUALIZADO',
+      recurso: { entidad_tipo: 'usuario', entidad_id: id, entidad_nombre: req.user.correo },
+      metadatos: { campos_modificados: camposPerfil },
     });
   }
 
@@ -84,11 +100,35 @@ export async function listarParcelasDeAgricultor(req, res) {
 }
 
 export async function asignarParcela(req, res) {
+  const usuario = await repo.findById(req.params.id);
+  if (!usuario || usuario.rol !== 'AGRICULTOR') {
+    throw AppError.badRequest('Solo se pueden asignar terrenos a usuarios con rol AGRICULTOR');
+  }
+  if (usuario.bloqueado) {
+    throw AppError.badRequest('El agricultor debe activar y validar su cuenta antes de asignarle un terreno');
+  }
+
   await parcelaRepo.asignarAgricultor(req.body.parcelaId, req.params.id);
+
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'AGRICULTOR_ASIGNADO',
+    actor: { usuario_id: req.user.id, correo: req.user.correo, rol: req.user.rol, empresa_id: req.user.empresa },
+    recurso: { entidad_tipo: 'parcela', entidad_id: req.body.parcelaId },
+    metadatos: { agricultor_id: req.params.id },
+  });
+
   res.json({ mensaje: 'Parcela asignada' });
 }
 
 export async function desasignarParcela(req, res) {
   await parcelaRepo.desasignarAgricultor(req.body.parcelaId, req.params.id);
+
+  emitir({
+    categoria: 'GESTION_PARCELA', accion: 'AGRICULTOR_DESASIGNADO',
+    actor: { usuario_id: req.user.id, correo: req.user.correo, rol: req.user.rol, empresa_id: req.user.empresa },
+    recurso: { entidad_tipo: 'parcela', entidad_id: req.body.parcelaId },
+    metadatos: { agricultor_id: req.params.id },
+  });
+
   res.json({ mensaje: 'Parcela desasignada' });
 }

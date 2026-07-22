@@ -60,6 +60,12 @@ export async function login({ correo, contra, captchaToken }, ip) {
   // Verificar CAPTCHA antes de procesar credenciales
   const captcha = await verificarRecaptcha(captchaToken, ip);
   if (!captcha.valido) {
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'CAPTCHA_FALLIDO', resultado: 'FALLO',
+      actor: { correo },
+      contexto: { ip, ruta: 'POST /api/auth/login' },
+      metadatos: { motivo: captcha.motivo ?? 'Verificación reCAPTCHA no superada' },
+    });
     throw AppError.badRequest('Verificación de seguridad fallida. Por favor completa el captcha.');
   }
   
@@ -67,28 +73,47 @@ export async function login({ correo, contra, captchaToken }, ip) {
 
   if (!usuario) {
     await intentoRepo.registrar({ correo, ip, exitoso: false, motivoFallo: 'Usuario inexistente' });
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'LOGIN_USUARIO_INEXISTENTE', resultado: 'FALLO',
+      actor: { correo },
+      contexto: { ip, ruta: 'POST /api/auth/login' },
+      metadatos: { motivo: 'El correo no corresponde a ninguna cuenta' },
+    });
     throw AppError.unauthorized('Credenciales inválidas');
   }
 
   // Cuenta bloqueada: no permite intentar hasta recuperar contrasena
   if (usuario.bloqueado) {
-    await intentoRepo.registrar({ correo, ip, exitoso: false, motivoFallo: 'Cuenta bloqueada' });
-    throw new AppError(423, 'Cuenta bloqueada por múltiples intentos fallidos. Recupera tu contraseña para desbloquearla.');
-  }
-
-    // Cuenta bloqueada: no permite intentar hasta recuperar contrasena
-  if (usuario.bloqueado) {
-    await intentoRepo.registrar({ correo, ip, exitoso: false, motivoFallo: 'Cuenta bloqueada' });
+    const pendienteActivacion = usuario.cuenta_activada === false;
+    await intentoRepo.registrar({
+      correo, ip, exitoso: false,
+      motivoFallo: pendienteActivacion ? 'Cuenta pendiente de activación' : 'Cuenta bloqueada',
+    });
     emitir({
-      categoria: 'AUTENTICACION', accion: 'LOGIN_CUENTA_BLOQUEADA', resultado: 'FALLO',
+      categoria: 'AUTENTICACION',
+      accion: pendienteActivacion ? 'LOGIN_CUENTA_PENDIENTE_ACTIVACION' : 'LOGIN_CUENTA_BLOQUEADA',
+      resultado: 'FALLO',
       actor: { usuario_id: usuario.id_usuario, correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+      recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario, entidad_nombre: correo },
       contexto: { ip, ruta: 'POST /api/auth/login' },
     });
-    throw new AppError(423, 'Cuenta bloqueada por múltiples intentos fallidos. Recupera tu contraseña para desbloquearla.');
+    throw new AppError(
+      423,
+      pendienteActivacion
+        ? 'Debes activar tu cuenta con el enlace enviado a tu correo antes de iniciar sesión.'
+        : 'Cuenta bloqueada por múltiples intentos fallidos. Recupera tu contraseña para desbloquearla.'
+    );
   }
 
   if (usuario.estado !== 'ACTIVA') {
     await intentoRepo.registrar({ correo, ip, exitoso: false, motivoFallo: 'Cuenta no activa' });
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'LOGIN_CUENTA_INACTIVA', resultado: 'FALLO',
+      actor: { usuario_id: usuario.id_usuario, correo, rol: usuario.rol, empresa_id: usuario.empresa_identificador },
+      recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario, entidad_nombre: correo },
+      contexto: { ip, ruta: 'POST /api/auth/login' },
+      metadatos: { estado_cuenta: usuario.estado },
+    });
     throw AppError.forbidden('La cuenta no está activa');
   }
 

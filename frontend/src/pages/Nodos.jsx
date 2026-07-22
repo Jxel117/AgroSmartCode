@@ -142,7 +142,7 @@ export default function Nodos() {
         )}
       />
 
-      <div className="tarjeta" style={{ padding: '0.5rem 1.5rem 1rem' }}>
+      <div className="tarjeta fade-in" style={{ padding: '0.5rem 1.5rem 1rem' }}>
         <div className="tabla-scroll">
           <table className="tabla">
             <thead>

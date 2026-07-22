@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import * as ctrl from './reporte.controller.js';
-import { authenticate } from '../../middlewares/auth.middleware.js';
+import { authenticate, authorize } from '../../middlewares/auth.middleware.js';
 import { validate } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const router = Router();
-router.use(authenticate);
+// Monitoreo: solo administrador/agricultor (el auditor no ve monitoreo)
+router.use(authenticate, authorize('ADMINISTRADOR', 'AGRICULTOR'));
 
 const parcelaParam = z.object({ parcelaId: z.string().uuid() });
 const generarSchema = z.object({

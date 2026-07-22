@@ -6,7 +6,6 @@ import { usuariosApi } from '../api/endpoints.js';
 import Modal from './Modal.jsx';
 import './ModalAvatar.css';
 
-// Lista de avatares disponibles. Debe coincidir con el backend.
 const AVATARES = [
   { id: 'avatar-1', label: 'Avatar 1' },
   { id: 'avatar-2', label: 'Avatar 2' },
@@ -19,7 +18,6 @@ export default function ModalAvatar({ abierto, alCerrar }) {
   const [seleccionado, setSeleccionado] = useState(usuario?.avatar_id ?? '');
   const [guardando, setGuardando] = useState(false);
 
-  // Sincronizar la seleccion con el avatar actual cada vez que se abre
   useEffect(() => {
     if (abierto) setSeleccionado(usuario?.avatar_id ?? '');
   }, [abierto, usuario?.avatar_id]);
@@ -52,7 +50,7 @@ export default function ModalAvatar({ abierto, alCerrar }) {
       notif.exito('Avatar restablecido al predeterminado');
       setSeleccionado('');
       alCerrar();
-    } catch (err) {
+    } catch {
       notif.error('No se pudo restablecer');
     } finally {
       setGuardando(false);

@@ -2,8 +2,10 @@ import { Routes, Route } from 'react-router-dom';
 import RutaProtegida from './components/RutaProtegida.jsx';
 import RutaPublica from './components/RutaPublica.jsx';
 import Layout from './components/Layout.jsx';
+import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import EventosRiego from './pages/EventosRiego.jsx';
 import Parcelas from './pages/Parcelas.jsx';
 import Nodos from './pages/Nodos.jsx';
 import Alertas from './pages/Alertas.jsx';
@@ -16,6 +18,7 @@ import RegistrarEmpresa from './pages/RegistrarEmpresa.jsx';
 export default function App() {
   return (
     <Routes>
+      <Route path="/bienvenida" element={<Landing />} />
       <Route path="/login" element={<RutaPublica><Login /></RutaPublica>} />
       <Route path="/olvidar-password" element={<RutaPublica><OlvidarPassword /></RutaPublica>} />
       <Route path="/registrar-empresa" element={<RutaPublica><RegistrarEmpresa /></RutaPublica>} />
@@ -24,6 +27,7 @@ export default function App() {
 
       <Route path="/" element={<RutaProtegida><Layout /></RutaProtegida>}>
         <Route index element={<Dashboard />} />
+        <Route path="eventos" element={<EventosRiego />} />
         <Route path="parcelas" element={<Parcelas />} />
         <Route path="nodos" element={<Nodos />} />
         <Route path="alertas" element={<Alertas />} />

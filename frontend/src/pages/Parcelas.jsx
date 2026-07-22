@@ -148,7 +148,7 @@ export default function Parcelas() {
       />
 
       {cargando ? <div className="spinner" /> : error ? <p style={{ color: 'var(--rojo)' }}>{error}</p> : (
-        <div className="tarjeta" style={{ padding: '0.5rem 1.5rem 1rem' }}>
+        <div className="tarjeta fade-in" style={{ padding: '0.5rem 1.5rem 1rem' }}>
           <div className="tabla-scroll">
             <table className="tabla">
               <thead>

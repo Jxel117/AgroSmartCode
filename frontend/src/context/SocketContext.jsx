@@ -31,12 +31,17 @@ export function SocketProvider({ children }) {
     if (!token) return;
 
     // Crear la conexion al servidor Socket.IO
+    // Sin limite de reintentos: el backend en desarrollo se reinicia seguido
+    // (nodemon) y el ESP32 tiene cortes de WiFi/MQTT frecuentes, asi que la
+    // reconexion tiene que ser indefinida o el dashboard se queda "congelado"
+    // hasta que el usuario recarga la pagina a mano.
     const socket = io(obtenerUrlWS(), {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socket.on('connect', () => {
@@ -54,10 +59,21 @@ export function SocketProvider({ children }) {
       setConectado(false);
     });
 
+    // Si el navegador suspendio los timers (pestaña en segundo plano, laptop
+    // en reposo) el socket puede quedar colgado sin que dispare 'disconnect'.
+    // Al volver a la pestaña forzamos una reconexion si hace falta.
+    const alVolverVisible = () => {
+      if (document.visibilityState === 'visible' && socket && !socket.connected) {
+        socket.connect();
+      }
+    };
+    document.addEventListener('visibilitychange', alVolverVisible);
+
     socketRef.current = socket;
 
     // Cleanup al desmontar o cambiar de usuario
     return () => {
+      document.removeEventListener('visibilitychange', alVolverVisible);
       socket.disconnect();
       socketRef.current = null;
       setConectado(false);

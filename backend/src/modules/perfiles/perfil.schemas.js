@@ -10,7 +10,7 @@ export const crearPerfilSchema = z.object({
   umaxRecomendado: z.number().min(0).max(100),
   uminCriticoRecomendado: z.number().min(0).max(100),
   tMaximoRecomendado: z.number(),
-  tminRecomendado: z.number().int(),
+  tminRecomendado: z.number(),
   descripcionAgronomica: z.string().max(1000).optional(),
   fuenteReferencia: z.string().max(255).optional(),
 }).refine((d) => d.uminCriticoRecomendado <= d.uminRecomendado, {
@@ -28,7 +28,7 @@ export const actualizarPerfilSchema = z.object({
   umaxRecomendado: z.number().min(0).max(100),
   uminCriticoRecomendado: z.number().min(0).max(100),
   tMaximoRecomendado: z.number(),
-  tminRecomendado: z.number().int(),
+  tminRecomendado: z.number(),
   descripcionAgronomica: z.string().max(1000).optional(),
   fuenteReferencia: z.string().max(255).optional(),
   estado: z.enum(['ACTIVO', 'DESHABILITADO']).default('ACTIVO'),

@@ -15,7 +15,14 @@ export async function solicitarRecuperacion(correoValidacion) {
   const usuario = await usuarioRepo.findByCorreoValidacion(correoValidacion);
 
   if (!usuario) {
-    // Respuesta neutral: no le decimos al atacante si el correo existe o no
+    // Al usuario se le responde de forma neutral para no revelar que correos
+    // existen, pero el intento SI queda auditado: una racha de solicitudes
+    // contra correos inexistentes delata un intento de enumeracion de cuentas.
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'RECUPERACION_CORREO_DESCONOCIDO', resultado: 'FALLO',
+      actor: { correo: correoValidacion },
+      metadatos: { motivo: 'El correo no corresponde a ninguna cuenta' },
+    });
     return { enviado: false };
   }
 
@@ -74,16 +81,35 @@ export async function completarRecuperacion(tokenPlano, passwordNueva) {
   await usuarioRepo.actualizarPassword(usuario.id_usuario, nuevaHash);
 
   // Si la cuenta estaba bloqueada por intentos fallidos, desbloquearla
+  const estabaBloqueada = usuario.bloqueado === true;
   await usuarioRepo.desbloquear(usuario.id_usuario);
 
   // Marcar el token como usado para que no sirva otra vez
   await tokenRepo.marcarUsado(usuario.id_token);
 
+  const actor = {
+    usuario_id: usuario.id_usuario,
+    correo: usuario.correo,
+    rol: usuario.rol,
+    empresa_id: usuario.empresa_identificador,
+  };
+
   emitir({
     categoria: 'AUTENTICACION', accion: 'RECUPERACION_COMPLETADA',
-    actor: { usuario_id: usuario.id_usuario, correo: usuario.correo },
-    recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario },
+    actor,
+    recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario, entidad_nombre: usuario.correo },
   });
+
+  // El desbloqueo es un cambio de privilegio por si mismo: se registra aparte
+  // para poder responder a "quien y cuando devolvio el acceso a esta cuenta".
+  if (estabaBloqueada) {
+    emitir({
+      categoria: 'AUTENTICACION', accion: 'CUENTA_DESBLOQUEADA',
+      actor,
+      recurso: { entidad_tipo: 'usuario', entidad_id: usuario.id_usuario, entidad_nombre: usuario.correo },
+      metadatos: { via: 'Enlace de recuperación de contraseña' },
+    });
+  }
 
   return {
     correo: usuario.correo,

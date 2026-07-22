@@ -78,6 +78,17 @@ export async function actualizar(id, datos) {
     protocoloComunicacion: datos.protocoloComunicacion ?? actual.protocolo_comunicacion ?? 'MQTT',
     estado: actual.estado,                             // no se cambia desde aquí
   });
+
+  emitir({
+    categoria: 'GESTION_NODO', accion: 'NODO_ACTUALIZADO',
+    recurso: { entidad_tipo: 'nodo', entidad_id: id },
+    metadatos: {
+      campos_modificados: Object.keys(datos),
+      parcela_anterior: actual.parcela_id ?? null,
+      parcela_nueva: datos.parcelaId ?? null,
+    },
+  });
+
   return nodo;
 }
 

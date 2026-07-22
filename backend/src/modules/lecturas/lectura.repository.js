@@ -11,7 +11,7 @@ export async function create(d) {
 }
 
 export async function actualizarUltimaLecturaNodo(nodoId) {
-  await query(`UPDATE nodo SET fecha_ultima_lectura = now(), estado = 'ACTIVO' WHERE id_nodo = $1`, [nodoId]);
+  await query(`UPDATE nodo SET fecha_ultima_lectura = now() WHERE id_nodo = $1`, [nodoId]);
 }
 
 // Lecturas recientes de una parcela (unidas a sus nodos), para el dashboard

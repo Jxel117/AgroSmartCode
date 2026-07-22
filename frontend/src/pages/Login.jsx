@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useValidacionForm } from '../hooks/useValidacionForm.js';
 import { notif } from '../utils/notif.js';
 import ReCAPTCHA from 'react-google-recaptcha';
+import { Mail, Lock } from 'lucide-react';
 import Campo from '../components/Campo.jsx';
 import CampoPassword from '../components/CampoPassword.jsx';
-import FondoCarrusel from '../components/FondoCarrusel.jsx';
-import './Login.css';
+import CampoConIcono from '../components/CampoConIcono.jsx';
+import AuthLayout from '../components/AuthLayout.jsx';
 
 const reglas = {
   correo: (v) => {
@@ -47,7 +48,7 @@ export default function Login() {
     if (!validar({ correo, contra }, reglas)) return;
 
     if (!captchaToken) {
-      notif.formulario.alerta('Por favor completa la verificación de seguridad');
+      notif.formulario.alerta('Por favor completa la verificación de seguridad', { className: 'toast-centro', position: 'top-center' });
       return;
     }
 
@@ -57,7 +58,7 @@ export default function Login() {
       navigate('/');
     } catch (err) {
       const mensaje = err.response?.data?.error ?? 'No se pudo iniciar sesión';
-      notif.formulario.error(mensaje);
+      notif.formulario.error(mensaje, { className: 'toast-centro', position: 'top-center' });
       captchaRef.current?.reset();
       setCaptchaToken(null);
     } finally {
@@ -66,58 +67,53 @@ export default function Login() {
   }
 
   return (
-    <div className="login-pagina">
-      <FondoCarrusel />
-
-      <div className="login-tarjeta">
-        <div className="login-encabezado">
-          <img className="login-logo" src="/agrosmart.svg" alt="AgroSmart" />
-          <h1 className="login-marca-titulo">AgroSmart</h1>
-          <p className="login-marca-subtitulo">Riego inteligente basado en IoT</p>
-        </div>
-
-        <form onSubmit={manejarSubmit} noValidate>
-          <Campo label="Correo" id="correo" error={errores.correo}>
+    <AuthLayout titulo="Inicia sesión" subtitulo="Ingresa a tu cuenta para monitorear y controlar tu riego" mensajesFlotantes>
+      <form onSubmit={manejarSubmit} noValidate>
+        <Campo label="Correo" id="correo" error={errores.correo}>
+          <CampoConIcono icono={Mail}>
             <input
               id="correo"
               type="email"
               value={correo}
               onChange={(e) => setCorreoValue(e.target.value)}
-              placeholder="tu@correo.com"
+              placeholder="Ingresa tu correo @agrosmart.ec"
             />
-          </Campo>
+          </CampoConIcono>
+        </Campo>
 
-          <Campo label="Contraseña" id="contra" error={errores.contra}>
+        <Campo label="Contraseña" id="contra" error={errores.contra}>
+          <CampoConIcono icono={Lock}>
             <CampoPassword
               id="contra"
               value={contra}
               onChange={(e) => setContraValue(e.target.value)}
+              placeholder="Ingresa tu contraseña"
               sinLabel
             />
-          </Campo>
+          </CampoConIcono>
+        </Campo>
 
-          <div className="login-captcha">
-            <ReCAPTCHA
-              ref={captchaRef}
-              sitekey={siteKey}
-              onChange={(token) => setCaptchaToken(token)}
-              onExpired={() => setCaptchaToken(null)}
-            />
-          </div>
+        <div className="login-captcha">
+          <ReCAPTCHA
+            ref={captchaRef}
+            sitekey={siteKey}
+            onChange={(token) => setCaptchaToken(token)}
+            onExpired={() => setCaptchaToken(null)}
+          />
+        </div>
 
-          <button className="btn btn-primario login-boton" type="submit" disabled={cargando || !captchaToken}>
-            {cargando ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : 'Entrar'}
-          </button>
+        <button className="btn btn-primario login-boton" type="submit" disabled={cargando || !captchaToken}>
+          {cargando ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : 'Entrar'}
+        </button>
 
-          <div className="login-enlaces">
-            <Link to="/olvidar-password">¿Olvidaste tu contraseña?</Link>
-            <span className="login-enlaces-secundario">
-              ¿Eres dueño de una finca?{' '}
-              <Link to="/registrar-empresa">Registra tu empresa</Link>
-            </span>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="login-enlaces">
+          <Link to="/olvidar-password">¿Olvidaste tu contraseña?</Link>
+          <span className="login-enlaces-secundario">
+            ¿Eres dueño de una finca?{' '}
+            <Link to="/registrar-empresa">Registra tu empresa</Link>
+          </span>
+        </div>
+      </form>
+    </AuthLayout>
   );
 }

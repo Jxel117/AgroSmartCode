@@ -16,3 +16,15 @@ export async function revocarPorToken(token) {
     [token]
   );
 }
+
+// Usado por el middleware de autenticacion en cada peticion: un JWT
+// con firma valida no basta, la sesion tambien debe seguir ACTIVA
+// (no cerrada por logout) y dentro de su fecha_expiracion.
+export async function estaActiva(token) {
+  const { rows } = await query(
+    `SELECT 1 FROM sesion_usuario
+     WHERE token_jwt = $1 AND estado = 'ACTIVA' AND fecha_expiracion > now()`,
+    [token]
+  );
+  return rows.length > 0;
+}

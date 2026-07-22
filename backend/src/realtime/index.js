@@ -93,3 +93,11 @@ export function emitirTransicionAfd(empresa, transicion) {
     if (!io) return;
     io.to(`empresa:${empresa}`).emit('transicion_afd', transicion);
 }
+
+/**
+ * Emite el estado de riego reportado por un nodo autonomo a todos los clientes de una empresa.
+ */
+export function emitirEstadoRiego(empresa, data) {
+    if (!io || !empresa) return;
+    io.to(`empresa:${empresa}`).emit('estado_riego', data);
+}

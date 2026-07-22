@@ -10,7 +10,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"   # 5433 en tu host para no interrumpir la bd local
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d agrosmart"]
       interval: 5s
@@ -29,16 +29,21 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: agrosmart
-      JWT_SECRET: cambia_esto_a_una_cadena_aleatoria_larga
+      JWT_SECRET: Joelelingenieromasinsanodelmundo
       JWT_EXPIRES_IN: 8h
       BCRYPT_ROUNDS: 10
       CORS_ORIGIN: http://localhost:8080
-      MQTT_ENABLED: "false"
+      MQTT_ENABLED: "true"
+      MQTT_URL: mqtt://host.docker.internal:1884
+      MQTT_USERNAME: backend_agrosmart
+      MQTT_PASSWORD: joel123
     ports:
       - "4000:4000"
     depends_on:
       db:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build:
@@ -47,7 +52,7 @@ services:
         VITE_API_URL: http://localhost:4000/api
     container_name: agrosmart-frontend
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       - backend
 

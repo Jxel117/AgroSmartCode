@@ -1,12 +1,13 @@
 import { query } from '../../db/pool.js';
 
 const COLS = `id_usuario, nombre, apellido, correo, correo_validacion, rol, estado,
-  empresa_identificador, bloqueado, fecha_creacion, fecha_modificacion`;
+  empresa_identificador, bloqueado, cuenta_activada, fecha_creacion, fecha_modificacion`;
 
 export async function findByCorreo(correo) {
   const { rows } = await query(
     `SELECT id_usuario, nombre, apellido, correo, correo_validacion, contra_hash,
-            rol, estado, empresa_identificador, intentos_fallidos, bloqueado, avatar_id
+            rol, estado, empresa_identificador, intentos_fallidos, bloqueado,
+            cuenta_activada, avatar_id
      FROM usuario WHERE correo = $1`,
     [correo]
   );
@@ -123,8 +124,22 @@ export async function bloquear(id) {
 }
 
 export async function desbloquear(id) {
+  // Llegar aca via el enlace de correo (recuperacion o primera activacion)
+  // es la prueba de que el usuario controla su Gmail: se marca activada.
   await query(
-    `UPDATE usuario SET bloqueado = false, fecha_bloqueo = NULL, intentos_fallidos = 0
+    `UPDATE usuario SET bloqueado = false, fecha_bloqueo = NULL, intentos_fallidos = 0,
+            cuenta_activada = true
+     WHERE id_usuario = $1`,
+    [id]
+  );
+}
+
+// Usado solo al crear un agricultor: queda bloqueado y sin activar hasta
+// que use el enlace de correo. Distinto de bloquear(), que no toca
+// cuenta_activada (para no "desactivar" a un usuario que ya se habia validado).
+export async function marcarPendienteActivacion(id) {
+  await query(
+    `UPDATE usuario SET bloqueado = true, cuenta_activada = false, fecha_bloqueo = now()
      WHERE id_usuario = $1`,
     [id]
   );
@@ -139,7 +154,7 @@ export async function findAgricultores(empresa = null) {
     const { rows } = await query(
       `SELECT id_usuario, nombre, apellido, correo, correo_validacion
        FROM usuario
-       WHERE rol = 'AGRICULTOR' AND estado = 'ACTIVA' AND empresa_identificador = $1
+       WHERE rol = 'AGRICULTOR' AND estado = 'ACTIVA' AND bloqueado = false AND empresa_identificador = $1
        ORDER BY apellido, nombre`,
       [empresa]
     );
@@ -148,7 +163,7 @@ export async function findAgricultores(empresa = null) {
   const { rows } = await query(
     `SELECT id_usuario, nombre, apellido, correo, correo_validacion
      FROM usuario
-     WHERE rol = 'AGRICULTOR' AND estado = 'ACTIVA'
+     WHERE rol = 'AGRICULTOR' AND estado = 'ACTIVA' AND bloqueado = false
      ORDER BY apellido, nombre`
   );
   return rows;

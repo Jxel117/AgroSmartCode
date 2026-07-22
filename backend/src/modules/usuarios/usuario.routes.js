@@ -23,11 +23,14 @@ router.patch(
   asyncHandler(ctrl.actualizarPerfilPropio)
 );
 
+// Cambio de contrasena propia. Ambas rutas apuntan al mismo controlador:
+// "/mi-password" es la que consume el frontend actual; "/me/password" se
+// mantiene por coherencia con el resto de endpoints "/me".
 router.patch(
   '/me/password',
   authenticate,
   validate(cambiarPasswordSchema),
-  asyncHandler(ctrl.cambiarPasswordPropio)
+  asyncHandler(ctrl.cambiarPassword)
 );
 
 // Cambio de contrasena propia (endpoint heredado)
@@ -38,12 +41,15 @@ router.patch(
   asyncHandler(ctrl.cambiarPassword)
 );
 
-router.get('/agricultores', asyncHandler(ctrl.listarAgricultores));
+router.get('/agricultores', authenticate, authorize('ADMINISTRADOR'), asyncHandler(ctrl.listarAgricultores));
 
-// ===== De aqui en adelante, solo ADMINISTRADOR =====
+// Lectura de usuarios: administrador (solo su empresa) o auditor (todas las
+// empresas: su cuenta no tiene empresa asignada, y listar() sin empresa trae todos)
+router.get('/', authenticate, authorize('ADMINISTRADOR', 'AUDITOR'), asyncHandler(ctrl.listar));
+
+// ===== De aqui en adelante, solo ADMINISTRADOR (mutaciones) =====
 router.use(authenticate, authorize('ADMINISTRADOR'));
 
-router.get('/', asyncHandler(ctrl.listar));
 router.post('/', validate(crearUsuarioSchema), asyncHandler(ctrl.crear));
 router.put('/:id', validate(idParamSchema, 'params'), validate(actualizarUsuarioSchema), asyncHandler(ctrl.actualizar));
 router.patch('/:id/estado', validate(idParamSchema, 'params'), validate(estadoUsuarioSchema), asyncHandler(ctrl.cambiarEstado));
@@ -60,6 +66,13 @@ router.patch(
   validate(idParamSchema, 'params'),
   validate(resetPasswordSchema),
   asyncHandler(ctrl.resetearPassword)
+);
+
+// El admin reenvia el correo de activacion (ej. si el primero no llego o expiro)
+router.post(
+  '/:id/reenviar-activacion',
+  validate(idParamSchema, 'params'),
+  asyncHandler(ctrl.reenviarActivacion)
 );
 
 router.get('/:id/parcelas', validate(idParamSchema, 'params'), asyncHandler(ctrl.listarParcelasDeAgricultor));

@@ -1,19 +1,22 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import PantallaCarga from './PantallaCarga.jsx';
 
 export default function RutaProtegida({ children, soloAdmin = false }) {
   const { usuario, cargando } = useAuth();
+  const location = useLocation();
 
   if (cargando) {
-    return (
-      <div style={{ display: 'grid', placeItems: 'center', height: '100vh' }}>
-        <div className="spinner" />
-      </div>
-    );
+    return <PantallaCarga />;
   }
 
-  if (!usuario) return <Navigate to="/login" replace />;
+  if (!usuario) return <Navigate to="/bienvenida" replace />;
   if (soloAdmin && usuario.rol !== 'ADMINISTRADOR') return <Navigate to="/" replace />;
+
+  // El auditor solo ve el dashboard completo (todo en una pagina)
+  if (usuario.rol === 'AUDITOR' && location.pathname !== '/') {
+    return <Navigate to="/" replace />;
+  }
 
   return children;
 }

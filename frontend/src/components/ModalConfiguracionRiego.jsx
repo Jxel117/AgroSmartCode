@@ -34,7 +34,7 @@ export default function ModalConfiguracionRiego({ abierto, onCerrar, parcela }) 
       setConfigActual(confRes.data.configuracion);
       setHistorial(histRes.data.historial ?? []);
       setPerfiles(perfRes.data.perfiles ?? []);
-    } catch (err) {
+    } catch {
       notif.error('No se pudo cargar la configuración');
     } finally {
       setCargando(false);
@@ -70,7 +70,7 @@ export default function ModalConfiguracionRiego({ abierto, onCerrar, parcela }) 
         umax: Number(formManual.umax),
         uminCritico: Number(formManual.uminCritico),
         tMaximo: Number(formManual.tMaximo),
-        tmin: parseInt(formManual.tmin, 10),
+        tmin: Number(formManual.tmin),
         nIntentosFallidosMax: parseInt(formManual.nIntentosFallidosMax, 10),
       };
       await riegoApi.aplicarManual(parcela.id_parcela, payload);
@@ -292,7 +292,7 @@ function SeccionManual({ form, setForm, onAplicar, guardando }) {
         </div>
         <div className="campo">
           <label>Temp. mínima (°C)</label>
-          <input type="number" step="1" required
+          <input type="number" step="0.1" required
             value={form.tmin} onChange={(e) => setForm({ ...form, tmin: e.target.value })} />
         </div>
       </div>

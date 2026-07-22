@@ -55,6 +55,7 @@ export function AuthProvider({ children }) {
   }
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR';
+  const esAuditor = usuario?.rol === 'AUDITOR';
 
   return (
     <AuthContext.Provider value={{
@@ -63,6 +64,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       esAdmin,
+      esAuditor,
       setUsuario,
       actualizarUsuario,
     }}>

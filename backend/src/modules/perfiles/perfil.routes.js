@@ -6,7 +6,8 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { crearPerfilSchema, actualizarPerfilSchema, idParamSchema } from './perfil.schemas.js';
 
 const router = Router();
-router.use(authenticate);
+// Monitoreo/configuracion: solo administrador/agricultor (no el auditor)
+router.use(authenticate, authorize('ADMINISTRADOR', 'AGRICULTOR'));
 
 router.get('/', asyncHandler(ctrl.listar));
 router.get('/:id', validate(idParamSchema, 'params'), asyncHandler(ctrl.obtener));

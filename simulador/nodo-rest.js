@@ -10,6 +10,11 @@
 // Opciones extra:
 //   --url http://localhost:4000   (URL del backend)
 //   --intervalo 5000              (ms entre lecturas)
+//
+// El simulador reacciona a la decision real del AFD del backend: cuando el
+// servidor responde que hay que encender/apagar el riego, se muestra una
+// cuenta regresiva y la humedad simulada empieza a subir/bajar en
+// consecuencia (como si la bomba hubiera respondido de verdad).
 
 import readline from 'node:readline';
 
@@ -39,8 +44,19 @@ if (!idNodo || !secreto) {
 // ----- Estado simulado del entorno -----
 let humedad = 60;          // %
 let temperaturaBase = 22;  // °C
-let regando = false;
+let regando = false;       // controlado manualmente (r/s) o automaticamente por la respuesta del AFD
+let regandoAuto = false;   // true mientras el AFD del backend mantenga el riego encendido
 let perfil = 'normal';     // 'normal' | 'critica' | 'temperatura_alta'
+let enCuentaRegresiva = false;
+let ultimoEstadoAfd = null;
+
+function horaActual() {
+  return new Date().toLocaleTimeString('es-EC', { hour12: false });
+}
+
+function log(linea) {
+  console.log(`[${horaActual()}] ${linea}`);
+}
 
 function leerSensor() {
   // Valores personalizados
@@ -56,8 +72,10 @@ function leerSensor() {
     };
   }
 
+  const regandoEfectivo = regando || regandoAuto;
+
   // Si esta regando, sube rapido; si no, baja
-  if (regando) {
+  if (regandoEfectivo) {
     humedad = Math.min(100, humedad + 4 + Math.random() * 2);
   } else {
     // Modo aleatorio con probabilidades para generar diferentes escenarios
@@ -87,7 +105,50 @@ function leerSensor() {
   };
 }
 
+function esperar(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Cuenta regresiva visual antes de reflejar la orden del AFD en el entorno simulado.
+async function reaccionarATransicion(transicion) {
+  if (!transicion || !transicion.accionActuador) return;
+
+  if (transicion.accionActuador === 'ENCENDER') {
+    if (regandoAuto) return; // ya estaba regando, no repetir la cuenta regresiva
+    enCuentaRegresiva = true;
+    log(`>>> ${transicion.causa}. Activando riego en...`);
+    for (let s = 5; s >= 1; s--) {
+      process.stdout.write(`      ${s}...\n`);
+      await esperar(400);
+    }
+    regandoAuto = true;
+    enCuentaRegresiva = false;
+    log('*** RIEGO ACTIVADO (bomba encendida) ***');
+  } else if (transicion.accionActuador === 'APAGAR') {
+    if (!regandoAuto && ultimoEstadoAfd !== 'S4_FALLO') {
+      // Igual avisamos el motivo (p.ej. temperatura alta impide regar) aunque ya estuviera apagado
+      if (transicion.simbolo === 'L_TEMPERATURA_ALTA') {
+        log(`xxx ${transicion.causa}. Riego bloqueado por temperatura.`);
+      }
+      return;
+    }
+    regandoAuto = false;
+    log(`--- RIEGO DETENIDO: ${transicion.causa} ---`);
+  }
+
+  ultimoEstadoAfd = transicion.estadoDestino;
+}
+
+function mostrarAlertas(alertas) {
+  for (const a of alertas ?? []) {
+    const marca = a.severidad === 'CRITICA' ? '!!!' : a.severidad === 'ADVERTENCIA' ? ' ! ' : ' i ';
+    log(`${marca} ALERTA [${a.severidad}] ${a.tipo_alerta}: ${a.mensaje}`);
+  }
+}
+
 async function publicar() {
+  if (enCuentaRegresiva) return; // no solapar lecturas mientras se muestra la cuenta regresiva
+
   const lectura = leerSensor();
   try {
     const respuesta = await fetch(`${url}/api/lecturas/ingesta`, {
@@ -102,36 +163,36 @@ async function publicar() {
     const data = await respuesta.json();
 
     if (!respuesta.ok) {
-      console.error(`[ERROR ${respuesta.status}] ${JSON.stringify(data)}`);
+      log(`xxx ERROR ${respuesta.status}: ${JSON.stringify(data)}`);
       return;
     }
 
-    const flags = [];
-    if (regando) flags.push('REGANDO');
-    if (data.transicion) flags.push(`AFD: ${data.transicion.estadoOrigen} -> ${data.transicion.estadoDestino}`);
-    if (data.alertas && data.alertas.length > 0) {
-      flags.push(`${data.alertas.length} alerta(s): ${data.alertas.map(a => a.tipo_alerta).join(', ')}`);
-    }
-    const sufijo = flags.length > 0 ? `  [${flags.join(' | ')}]` : '';
-    console.log(`-> H=${lectura.humedad}% T=${lectura.temperatura}°C${sufijo}`);
+    const estadoTexto = (regando || regandoAuto) ? 'REGANDO' : 'seco progresivo';
+    log(`Humedad: ${lectura.humedad}%   Temperatura: ${lectura.temperatura}°C   (${estadoTexto})`);
+
+    mostrarAlertas(data.alertas);
+    await reaccionarATransicion(data.transicion);
   } catch (err) {
-    console.error('Error al enviar:', err.message);
+    log(`xxx Error al enviar: ${err.message}`);
   }
 }
 
 // ----- Inicio -----
-console.log(`Simulador REST de AgroSmart`);
+console.log('Simulador REST de AgroSmart (modo interactivo)');
 console.log(`URL: ${url}/api/lecturas/ingesta`);
 console.log(`Nodo: ${idNodo}`);
 console.log(`Intervalo: ${intervaloMs} ms`);
 console.log('');
 console.log('Controles:');
-console.log('  r = activar riego (humedad sube)');
-console.log('  s = detener riego');
+console.log('  r = forzar riego manualmente (humedad sube)');
+console.log('  s = detener el forzado manual');
 console.log('  c = forzar lecturas criticas (humedad baja)');
 console.log('  t = forzar temperatura alta');
 console.log('  n = volver a normal');
 console.log('  Ctrl+C = salir');
+console.log('');
+console.log('El riego tambien se activa/desactiva solo, siguiendo la decision');
+console.log('real del backend (AFD) segun los umbrales configurados.');
 console.log('');
 
 // Publicar la primera lectura inmediato y luego cada N ms
@@ -148,18 +209,18 @@ process.stdin.on('keypress', (str, key) => {
     process.exit(0);
   } else if (key.name === 'r') {
     regando = true;
-    console.log('[RIEGO ACTIVADO]');
+    log('[RIEGO FORZADO MANUALMENTE]');
   } else if (key.name === 's') {
     regando = false;
-    console.log('[RIEGO DETENIDO]');
+    log('[FORZADO MANUAL DETENIDO]');
   } else if (key.name === 'c') {
     perfil = 'critica';
-    console.log('[MODO CRITICO: humedad baja constante]');
+    log('[MODO CRITICO: humedad baja constante]');
   } else if (key.name === 't') {
     perfil = 'temperatura_alta';
-    console.log('[MODO TEMPERATURA ALTA]');
+    log('[MODO TEMPERATURA ALTA]');
   } else if (key.name === 'n') {
     perfil = 'normal';
-    console.log('[MODO NORMAL]');
+    log('[MODO NORMAL]');
   }
 });

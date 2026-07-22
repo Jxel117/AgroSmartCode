@@ -1,27 +1,283 @@
+/* ===== IoT Dashboard (agricultor/admin) =====
+   El indicador "en vivo" (.en-vivo / .en-vivo-punto) vive en index.css,
+   compartido con el resto de vistas. Aqui solo queda el layout propio
+   de este panel. */
+
+.dash-header-acciones {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+}
+.dash-empresa-chip {
+  background: var(--verde-50); color: var(--verde-700); font-weight: 500;
+  font-size: 0.88rem; padding: 0.55rem 0.9rem; border-radius: var(--radio-sm);
+  white-space: nowrap;
+}
+.dash-header-acciones .btn {
+  display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+}
+
 .dash-selector {
   padding: 0.55rem 0.9rem; border: 1px solid var(--gris-300);
   border-radius: var(--radio-sm); background: var(--blanco); font-weight: 500; min-width: 200px;
+  transition: border-color var(--transicion-rapida), box-shadow var(--transicion-rapida);
 }
+.dash-selector:hover { border-color: var(--verde-400); }
+.dash-selector:focus { outline: none; border-color: var(--verde-500); box-shadow: 0 0 0 3px var(--verde-100); }
+
+.dash-tarjetas-header {
+  display: flex; justify-content: flex-end; margin-bottom: 0.5rem;
+}
+
 .dash-tarjetas {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem;
 }
 .dash-tarjeta-metrica, .dash-tarjeta-estado {
   padding: 1.3rem; display: flex; flex-direction: column;
 }
+.dash-tarjeta-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+.dash-tarjeta-icono {
+  display: grid; place-items: center; width: 38px; height: 38px;
+  border-radius: var(--radio-sm); flex-shrink: 0;
+}
 .dash-tarjeta-titulo { font-size: 0.82rem; color: var(--gris-500); font-weight: 600; }
 .dash-tarjeta-valor { font-family: var(--fuente-titulo); font-size: 2.1rem; font-weight: 600; margin-top: 0.35rem; }
 .dash-tarjeta-detalle { font-size: 0.78rem; color: var(--gris-500); margin-top: auto; padding-top: 0.5rem; }
+
 .dash-grafico { padding: 1.5rem; margin-bottom: 1.25rem; }
 .dash-transiciones { padding: 1.5rem; }
 
-.tabla { width: 100%; border-collapse: collapse; }
-.tabla th {
-  text-align: left; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--gris-500); padding: 0.6rem 0.75rem; border-bottom: 2px solid var(--gris-100);
+.dash-seccion-header {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 0.5rem; margin-bottom: 1.1rem;
 }
-.tabla td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--gris-100); font-size: 0.9rem; }
-.tabla tbody tr:hover { background: var(--crema); }
-.tabla-scroll { overflow-x: auto; }
+.dash-seccion-titulo-grupo { display: flex; flex-direction: column; gap: 0.15rem; }
+.dash-seccion-subtitulo { font-size: 0.8rem; color: var(--gris-500); }
 
+.dash-eventos-contador {
+  font-size: 0.8rem; font-weight: 600; color: var(--gris-500);
+  background: var(--gris-50); padding: 0.3rem 0.7rem; border-radius: var(--radio-full);
+  white-space: nowrap;
+}
+
+/* ===== Audit Dashboard - Full screen ===== */
+.audit-loading {
+  display: grid; place-items: center; padding: 4rem;
+}
+.audit-error {
+  padding: 2.5rem; text-align: center; color: var(--rojo);
+}
+.audit-empty {
+  text-align: center; color: var(--gris-500); padding: 1.5rem;
+}
+
+.audit-pagina {
+  display: flex;
+  flex-direction: column;
+}
+
+.audit-fullscreen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+/* Metric cards row */
+.audit-metricas-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.audit-metrica {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+}
+
+.audit-metrica-icono {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radio-sm);
+  flex-shrink: 0;
+}
+
+.audit-metrica-cuerpo {
+  display: flex;
+  flex-direction: column;
+}
+
+.audit-metrica-valor {
+  font-family: var(--fuente-titulo);
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.audit-metrica-titulo {
+  font-size: 0.76rem;
+  color: var(--gris-500);
+  font-weight: 500;
+  margin-top: 0.15rem;
+}
+
+/* Tables row - una sola columna: Empresas (compacta, arriba) y Usuarios (a continuacion, sin estirarse) */
+.audit-tablas-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.audit-seccion-empresas {
+  flex-shrink: 0;
+}
+
+.audit-seccion-usuarios {
+  flex-shrink: 0;
+}
+
+/* Empresas: fila de tarjetas compactas en vez de tabla/lista vertical */
+.audit-lista-empresas {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.audit-empresa-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--gris-100);
+  border-radius: var(--radio-sm);
+  flex: 1 1 260px;
+}
+
+.audit-empresa-icono {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radio-sm);
+  background: var(--verde-50);
+  color: var(--verde-600);
+  flex-shrink: 0;
+}
+
+.audit-empresa-nombre {
+  font-weight: 600;
+  font-size: 0.88rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.audit-empresa-stats {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.audit-empresa-stats .badge {
+  gap: 0.3rem;
+}
+
+.audit-usuario-nombre {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+
+.audit-usuario-avatar {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--verde-600), var(--verde-700));
+  color: white;
+  font-size: 0.63rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.audit-seccion {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.audit-celda-correo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.82rem;
+}
+
+.audit-correo-secundario {
+  font-size: 0.74rem;
+  color: var(--gris-500);
+}
+
+.audit-nowrap {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.audit-seccion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--gris-100);
+  flex-shrink: 0;
+}
+
+.audit-seccion-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* Tabla de usuarios: fila mas compacta que el resto de la app, solo en este panel */
+.audit-seccion-usuarios .tabla thead th {
+  padding: 0.35rem 0.6rem;
+}
+
+.audit-seccion-usuarios .tabla tbody td {
+  padding: 0.28rem 0.6rem;
+}
+
+/* ===== Shared ===== */
+.tabla { width: 100%; border-collapse: collapse; }
+.tabla thead th {
+  text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--gris-500); padding: 0.45rem 0.6rem; border-bottom: 2px solid var(--gris-100);
+  position: sticky; top: 0; background: var(--blanco); z-index: 1;
+  white-space: nowrap;
+}
+.tabla tbody td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--gris-100);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.tabla tbody tr:hover { background: var(--crema); }
+
+/* ===== Responsive ===== */
 @media (max-width: 1000px) { .dash-tarjetas { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .dash-tarjetas { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) {
+  .audit-lista-empresas { flex-direction: column; }
+}

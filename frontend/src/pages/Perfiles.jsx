@@ -157,7 +157,7 @@ export default function Perfiles() {
   return (
     <>
       <EncabezadoPagina
-        titulo="Configuraciones por Cultivo"
+        titulo="Configuraciones de Riego"
         descripcion="Plantillas de riego según el tipo de cultivo. Aquí defines los umbrales de humedad y temperatura que el sistema usará para activar o detener el riego automáticamente."
         accion={
           <button className="btn btn-primario" onClick={abrirNuevo}>
@@ -168,9 +168,9 @@ export default function Perfiles() {
       />
 
       {cargando ? <div className="spinner" /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+        <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {datos?.map((p) => (
-            <div key={p.id_perfil} className="tarjeta" style={{ padding: '1.35rem' }}>
+            <div key={p.id_perfil} className="tarjeta tarjeta-hover" style={{ padding: '1.35rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h3 style={{ fontSize: '1.1rem' }}>{p.tipo_cultivo}</h3>

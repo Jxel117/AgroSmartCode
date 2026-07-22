@@ -8,7 +8,8 @@ import {
 } from './parcela.schemas.js';
 
 const router = Router();
-router.use(authenticate);
+// Monitoreo: solo administrador/agricultor (el auditor no ve monitoreo)
+router.use(authenticate, authorize('ADMINISTRADOR', 'AGRICULTOR'));
 
 router.get('/', asyncHandler(ctrl.listar));
 router.get('/:id', validate(idParamSchema, 'params'), asyncHandler(ctrl.obtener));

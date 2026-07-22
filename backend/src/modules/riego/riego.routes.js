@@ -6,7 +6,8 @@ import { validate } from '../../middlewares/validate.middleware.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 
 const router = Router();
-router.use(authenticate);
+// Monitoreo: solo administrador/agricultor (el auditor no ve monitoreo)
+router.use(authenticate, authorize('ADMINISTRADOR', 'AGRICULTOR'));
 
 const parcelaParam = z.object({ parcelaId: z.string().uuid() });
 
@@ -15,7 +16,7 @@ const manualSchema = z.object({
   umax: z.number().min(0).max(100),
   uminCritico: z.number().min(0).max(100),
   tMaximo: z.number(),
-  tmin: z.number().int(),
+  tmin: z.number(),
   nIntentosFallidosMax: z.number().int().min(1).max(10).optional(),
 });
 const perfilSchema = z.object({ perfilId: z.string().uuid() });

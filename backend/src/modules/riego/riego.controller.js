@@ -1,6 +1,7 @@
 import * as configService from './configuracion.service.js';
 import * as actuadorRepo from './actuador.repository.js';
 import * as afdRepo from '../afd/afd.repository.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 export async function obtenerConfig(req, res) {
   res.json({ configuracion: await configService.obtenerVigente(req.params.parcelaId) });
@@ -24,6 +25,13 @@ export async function crearActuador(req, res) {
   const actuador = await actuadorRepo.create({
     parcelaId: req.params.parcelaId, tipo: req.body.tipo,
   });
+
+  emitir({
+    categoria: 'GESTION_NODO', accion: 'ACTUADOR_CREADO',
+    recurso: { entidad_tipo: 'actuador', entidad_id: actuador.id_actuador, entidad_nombre: actuador.tipo },
+    metadatos: { parcela_id: req.params.parcelaId, tipo: actuador.tipo },
+  });
+
   res.status(201).json({ actuador });
 }
 

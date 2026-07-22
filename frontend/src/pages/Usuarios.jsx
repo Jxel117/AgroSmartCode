@@ -11,7 +11,7 @@ import ModalParcelasUsuario from '../components/ModalParcelasUsuario.jsx';
 import { claseBadgeEstado } from '../utils/formato.js';
 import CampoPassword from '../components/CampoPassword.jsx';
 import { notif } from '../utils/notif.js';
-import { UserPlus, Pencil, Trash2, KeyRound, Power, PowerOff, MapPinned } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, KeyRound, Power, PowerOff, MapPinned, Mail } from 'lucide-react';
 import ModalConfirmar from '../components/ModalConfirmar.jsx';
 
 const VACIO = { nombre: '', apellido: '', correoValidacion: '', contra: '', rol: 'AGRICULTOR' };
@@ -26,7 +26,9 @@ const reglasCrear = {
     if (!v.toLowerCase().endsWith('@gmail.com')) return 'Debe ser una cuenta @gmail.com';
     return null;
   },
-  contra: (v) => {
+  contra: (v, form) => {
+    // Los AGRICULTOR no llevan contraseña: activan su cuenta por correo.
+    if (form?.rol !== 'ADMINISTRADOR') return null;
     if (!v) return 'La contraseña es obligatoria';
     if (v.length < 8) return 'Mínimo 8 caracteres';
     return null;
@@ -39,7 +41,7 @@ const reglasEditar = {
 };
 
 export default function Usuarios() {
-  const { usuario: actual } = useAuth();
+  const { usuario: actual, esAuditor } = useAuth();
   const { datos, cargando, error, recargar } = useFetch(() => usuariosApi.listar().then((r) => r.data.usuarios));
 
   const [modal, setModal] = useState(false);
@@ -105,9 +107,14 @@ export default function Usuarios() {
       if (editando) {
         await usuariosApi.actualizar(editando, { nombre: form.nombre, apellido: form.apellido });
         notif.exito('Usuario actualizado');
-      } else {
+      } else if (form.rol === 'ADMINISTRADOR') {
         await usuariosApi.crear(form);
         notif.exito('Usuario creado correctamente');
+      } else {
+        const datosAgricultor = { ...form };
+        delete datosAgricultor.contra;
+        await usuariosApi.crear(datosAgricultor);
+        notif.exito('Agricultor registrado. Se le envió un correo para activar su cuenta.');
       }
       setModal(false);
       recargar();
@@ -130,6 +137,15 @@ export default function Usuarios() {
       recargar();
     } catch (err) {
       notif.error(err.response?.data?.error ?? 'No se pudo cambiar el estado');
+    }
+  }
+
+  async function reenviarActivacion(u) {
+    try {
+      await usuariosApi.reenviarActivacion(u.id);
+      notif.exito('Correo de activación reenviado');
+    } catch (err) {
+      notif.error(err.response?.data?.error ?? 'No se pudo reenviar el correo');
     }
   }
 
@@ -185,17 +201,19 @@ export default function Usuarios() {
     <>
       <EncabezadoPagina
         titulo="Usuarios"
-        descripcion="Cuentas de tu empresa: administradores que gestionan el sistema y agricultores que monitorean sus terrenos asignados."
-        accion={
+        descripcion={esAuditor
+          ? 'Solo lectura: todos los administradores y agricultores registrados, de todas las empresas.'
+          : 'Cuentas de tu empresa: administradores que gestionan el sistema y agricultores que monitorean sus terrenos asignados.'}
+        accion={esAuditor ? undefined : (
           <button className="btn btn-primario" onClick={abrirNuevo}>
             <UserPlus size={16} strokeWidth={2} />
             Nuevo usuario
           </button>
-        }
+        )}
       />
 
       {cargando ? <div className="spinner" /> : error ? <p style={{ color: 'var(--rojo)' }}>{error}</p> : (
-        <div className="tarjeta" style={{ padding: '0.5rem 1.5rem 1rem' }}>
+        <div className="tarjeta fade-in" style={{ padding: '0.5rem 1.5rem 1rem' }}>
           <div className="tabla-scroll">
             <table className="tabla">
               <thead>
@@ -203,9 +221,10 @@ export default function Usuarios() {
                   <th>Nombre</th>
                   <th>Correo acceso</th>
                   <th>Correo validación</th>
+                  {esAuditor && <th>Empresa</th>}
                   <th>Rol</th>
                   <th>Estado</th>
-                  <th></th>
+                  {!esAuditor && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -214,40 +233,53 @@ export default function Usuarios() {
                     <td style={{ fontWeight: 600 }}>
                       {u.nombre} {u.apellido}
                       {u.id === actual.id && <span className="badge badge-gris" style={{ marginLeft: '0.5rem' }}>tú</span>}
-                      {u.bloqueado && <span className="badge badge-rojo" style={{ marginLeft: '0.5rem' }}>bloqueado</span>}
+                      {u.cuentaActivada === false
+                        ? <span className="badge badge-ambar" style={{ marginLeft: '0.5rem' }}>pendiente de activación</span>
+                        : u.bloqueado && <span className="badge badge-rojo" style={{ marginLeft: '0.5rem' }}>bloqueado</span>
+                      }
                     </td>
                     <td style={{ color: 'var(--gris-700)', fontSize: '0.85rem' }}>{u.correo}</td>
                     <td style={{ color: 'var(--gris-500)', fontSize: '0.85rem' }}>{u.correoValidacion ?? '—'}</td>
+                    {esAuditor && (
+                      <td style={{ color: 'var(--gris-700)', fontSize: '0.85rem' }}>{u.empresaIdentificador ?? '—'}</td>
+                    )}
                     <td><span className={`badge ${u.rol === 'ADMINISTRADOR' ? 'badge-ambar' : 'badge-gris'}`}>{u.rol}</span></td>
                     <td><span className={`badge ${claseBadgeEstado(u.estado)}`}>{u.estado}</span></td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="btn-icono" title="Editar" onClick={() => abrirEditar(u)}>
-                        <Pencil size={16} strokeWidth={1.8} />
-                      </button>
-                      <button className="btn-icono" title="Resetear contraseña" onClick={() => abrirResetPass(u)}>
-                        <KeyRound size={16} strokeWidth={1.8} />
-                      </button>
-                      {u.rol === 'AGRICULTOR' && (
-                        <button className="btn-icono" title="Terrenos asignados" onClick={() => abrirParcelas(u)}>
-                          <MapPinned size={16} strokeWidth={1.8} />
+                    {!esAuditor && (
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="btn-icono" title="Editar" onClick={() => abrirEditar(u)}>
+                          <Pencil size={16} strokeWidth={1.8} />
                         </button>
-                      )}
-                      {u.id !== actual.id && (
-                        <>
-                          {u.estado === 'ACTIVA'
-                            ? <button className="btn-icono" title="Suspender" onClick={() => cambiarEstado(u, 'SUSPENDIDA')}>
-                              <PowerOff size={16} strokeWidth={1.8} />
-                            </button>
-                            : <button className="btn-icono" title="Activar" onClick={() => cambiarEstado(u, 'ACTIVA')}>
-                              <Power size={16} strokeWidth={1.8} />
-                            </button>
-                          }
-                          <button className="btn-icono btn-icono-peligro" title="Eliminar" onClick={() => eliminar(u)}>
-                            <Trash2 size={16} strokeWidth={1.8} />
+                        {u.cuentaActivada === false
+                          ? <button className="btn-icono" title="Reenviar correo de activación" onClick={() => reenviarActivacion(u)}>
+                            <Mail size={16} strokeWidth={1.8} />
                           </button>
-                        </>
-                      )}
-                    </td>
+                          : <button className="btn-icono" title="Resetear contraseña" onClick={() => abrirResetPass(u)}>
+                            <KeyRound size={16} strokeWidth={1.8} />
+                          </button>
+                        }
+                        {u.rol === 'AGRICULTOR' && (
+                          <button className="btn-icono" title="Terrenos asignados" onClick={() => abrirParcelas(u)}>
+                            <MapPinned size={16} strokeWidth={1.8} />
+                          </button>
+                        )}
+                        {u.id !== actual.id && (
+                          <>
+                            {u.estado === 'ACTIVA'
+                              ? <button className="btn-icono" title="Suspender" onClick={() => cambiarEstado(u, 'SUSPENDIDA')}>
+                                <PowerOff size={16} strokeWidth={1.8} />
+                              </button>
+                              : <button className="btn-icono" title="Activar" onClick={() => cambiarEstado(u, 'ACTIVA')}>
+                                <Power size={16} strokeWidth={1.8} />
+                              </button>
+                            }
+                            <button className="btn-icono btn-icono-peligro" title="Eliminar" onClick={() => eliminar(u)}>
+                              <Trash2 size={16} strokeWidth={1.8} />
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {datos.length === 0 && (
@@ -293,23 +325,31 @@ export default function Usuarios() {
                 />
               </Campo>
 
-              <Campo label="Contraseña" id="contraNuevo" obligatorio error={errores.contra}>
-                <CampoPassword
-                  id="contraNuevo"
-                  value={form.contra}
-                  onChange={(e) => setCampo('contra', e.target.value)}
-                  placeholder="Contraseña segura"
-                  sinLabel
-                />
-              </Campo>
-              <MedidorPassword password={form.contra} />
-
               <Campo label="Rol" id="rol">
                 <select id="rol" value={form.rol} onChange={(e) => setCampo('rol', e.target.value)}>
                   <option value="AGRICULTOR">AGRICULTOR</option>
                   <option value="ADMINISTRADOR">ADMINISTRADOR</option>
                 </select>
               </Campo>
+
+              {form.rol === 'ADMINISTRADOR' ? (
+                <>
+                  <Campo label="Contraseña" id="contraNuevo" obligatorio error={errores.contra}>
+                    <CampoPassword
+                      id="contraNuevo"
+                      value={form.contra}
+                      onChange={(e) => setCampo('contra', e.target.value)}
+                      placeholder="Contraseña segura"
+                      sinLabel
+                    />
+                  </Campo>
+                  <MedidorPassword password={form.contra} />
+                </>
+              ) : (
+                <p style={{ fontSize: '0.82rem', color: 'var(--gris-500)', marginBottom: '1rem' }}>
+                  El agricultor no queda activo de inmediato: se le enviará un correo a su Gmail con un enlace para activar la cuenta y definir su propia contraseña. Hasta que lo haga, no podrá iniciar sesión ni ser asignado a terrenos.
+                </p>
+              )}
             </>
           )}
 

@@ -7,6 +7,7 @@ import { generarCorreoInstitucional } from '../../utils/correoInstitucional.js';
 import { env } from '../../config/env.js';
 import { AppError } from '../../utils/AppError.js';
 import { query } from '../../db/pool.js';
+import { emitir } from '../../audit/audit.emitter.js';
 
 /**
  * Registra una empresa nueva: crea el admin "pendiente" y le envia un email
@@ -73,6 +74,13 @@ export async function registrarEmpresa(datos) {
     asunto: 'AgroSmart - Activa tu cuenta de administrador',
     html,
     texto: `Activa tu cuenta abriendo este enlace: ${enlace} (válido por 1 hora). Tu correo de acceso será ${correoInstitucional}.`,
+  });
+
+  emitir({
+    categoria: 'AUTENTICACION', accion: 'EMPRESA_REGISTRADA',
+    actor: { usuario_id: usuario.id_usuario, correo: correoInstitucional, rol: 'ADMINISTRADOR', empresa_id: datos.empresaIdentificador },
+    recurso: { entidad_tipo: 'empresa', entidad_id: datos.empresaIdentificador, entidad_nombre: datos.empresaIdentificador },
+    metadatos: { correo_validacion: datos.correoValidacion },
   });
 
   return {
